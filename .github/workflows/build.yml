@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -29,7 +30,7 @@ jobs:
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --force
 
       - name: Build Vite app
         run: npm run build
