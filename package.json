@@ -62,10 +62,16 @@
     "win": {
       "target": "nsis"
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
     "publish": null,
     "asar": true,
     "asarUnpack": [
-      ".env"
+      ".env",
+      "node_modules/sql.js/**/*"
     ]
   }
 }
