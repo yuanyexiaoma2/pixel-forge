@@ -60,12 +60,15 @@
       "target": "dmg"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": false
+      "perMachine": false,
+      "runAfterFinish": false,
+      "include": "build/installer.nsh"
     },
     "publish": null,
     "asar": true,
