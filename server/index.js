@@ -182,10 +182,11 @@ function reqAuthHeaders(req) {
 }
 
 // POST /api/upload — 转发到 kie.ai，返回公网可访问的临时 URL（支持多文件）
-app.post('/api/upload', upload.array('file', 10), async (req, res) => {
+app.post('/api/upload', authMiddleware, upload.array('file', 10), async (req, res) => {
   const files = req.files || [];
   if (!files.length) return res.status(400).json({ error: '未收到文件' });
-  if (!process.env.KIE_API_KEY && !(req.user && getUserApiKey(req.user.id))) return res.status(500).json({ error: 'API Key 未配置，请在侧边栏设置自定义 API Key' });
+  const apiKey = (req.user ? getUserApiKey(req.user.id) : '') || process.env.KIE_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'API Key 未配置，请在侧边栏设置自定义 API Key' });
   try {
     const urls = [];
     for (const file of files) {
@@ -194,7 +195,7 @@ app.post('/api/upload', upload.array('file', 10), async (req, res) => {
       fd.append('uploadPath', 'images');
       const response = await fetch('https://kieai.redpandaai.co/api/file-stream-upload', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.KIE_API_KEY}` },
+        headers: { 'Authorization': `Bearer ${apiKey}` },
         body: fd,
       });
       const json = await response.json();

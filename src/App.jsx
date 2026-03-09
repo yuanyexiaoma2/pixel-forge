@@ -638,7 +638,8 @@ function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
 
   const handleFile=f=>{
     if(!f||!f.type.startsWith('image/'))return;
-    setFile(f);setPreviewUrl(URL.createObjectURL(f));setError(null);setResults([]);
+    setFile(f);setError(null);setResults([]);
+    const reader=new FileReader();reader.onload=()=>setPreviewUrl(reader.result);reader.readAsDataURL(f);
   };
 
   const doEnhance=async()=>{
@@ -678,7 +679,7 @@ function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
       <div onClick={()=>fileInputRef.current?.click()} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);handleFile(e.dataTransfer.files[0]);}} style={{background:dragging?"rgba(124,184,196,.04)":"var(--bgc)",border:`1.5px dashed ${dragging?"var(--cy)":"var(--bd)"}`,borderRadius:10,padding:previewUrl?0:"40px 36px",textAlign:"center",cursor:"pointer",transition:"all .2s",marginBottom:16,overflow:"hidden",position:"relative",minHeight:previewUrl?220:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
         {previewUrl?(
-          <><img src={previewUrl} alt="preview" style={{width:"100%",maxHeight:360,objectFit:"contain",display:"block",borderRadius:18}}/><div style={{position:"absolute",bottom:12,right:12,display:"flex",gap:6}}><div style={{padding:"6px 14px",borderRadius:10,background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.12)",fontSize:12,color:"rgba(255,255,255,.7)",backdropFilter:"blur(8px)"}}>点击更换图片</div><div onClick={e=>{e.stopPropagation();if(previewUrl)URL.revokeObjectURL(previewUrl);setFile(null);setPreviewUrl(null);setResults([]);setError(null);}} style={{padding:"6px 14px",borderRadius:10,background:"rgba(239,68,68,.6)",border:"1px solid rgba(239,68,68,.4)",fontSize:12,color:"#fff",backdropFilter:"blur(8px)",cursor:"pointer"}}>删除</div></div></>
+          <><img src={previewUrl} alt="preview" style={{width:"100%",maxHeight:360,objectFit:"contain",display:"block",borderRadius:18}}/><div style={{position:"absolute",bottom:12,right:12,display:"flex",gap:6}}><div style={{padding:"6px 14px",borderRadius:10,background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.12)",fontSize:12,color:"rgba(255,255,255,.7)",backdropFilter:"blur(8px)"}}>点击更换图片</div><div onClick={e=>{e.stopPropagation();setFile(null);setPreviewUrl(null);setResults([]);setError(null);}} style={{padding:"6px 14px",borderRadius:10,background:"rgba(239,68,68,.6)",border:"1px solid rgba(239,68,68,.4)",fontSize:12,color:"#fff",backdropFilter:"blur(8px)",cursor:"pointer"}}>删除</div></div></>
         ):(
           <div>
             <div style={{width:56,height:56,borderRadius:12,margin:"0 auto 16px",background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid var(--bd)",color:"var(--t3)"}}>{Icons.upload}</div>
@@ -739,8 +740,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
 
   const handleRefFile=async f=>{
     if(!f||!f.type.startsWith('image/'))return;
-    if(refPreview)URL.revokeObjectURL(refPreview);
-    setRefPreview(URL.createObjectURL(f));
+    const reader=new FileReader();reader.onload=()=>setRefPreview(reader.result);reader.readAsDataURL(f);
     setUploadingRef(true);
     try{
       const fd=new FormData();fd.append('file',f);
@@ -752,7 +752,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
     finally{setUploadingRef(false);}
   };
 
-  const clearRef=e=>{e?.stopPropagation();if(refPreview)URL.revokeObjectURL(refPreview);setRefImageUrl(null);setRefPreview(null);if(refInputRef.current)refInputRef.current.value='';};
+  const clearRef=e=>{e?.stopPropagation();setRefImageUrl(null);setRefPreview(null);if(refInputRef.current)refInputRef.current.value='';};
 
   const doGenerate=async()=>{
     if(!prompt.trim())return;
@@ -1062,7 +1062,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
     setOutputFormat(o.outputFormats?.[0]??null);
     setSpeed(o.speeds?.[1]?.value??null);
     setOpenDropdown(null);
-    if(!MODELS[selModel].supportsRefImage){setRefImages(prev=>{prev.forEach(r=>URL.revokeObjectURL(r.preview));return[];});}
+    if(!MODELS[selModel].supportsRefImage){setRefImages([]);}
   },[selModel]);
 
   useEffect(()=>{
@@ -1071,11 +1071,14 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
     return ()=>document.removeEventListener('click',handler);
   },[]);
 
+  const readAsDataUrl=f=>new Promise(resolve=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(f);});
+
   const handleRefFiles=async files=>{
     const validFiles=[...files].filter(f=>f.type.startsWith('image/'));
     if(!validFiles.length)return;
-    // 为每个文件创建临时预览项
-    const newItems=validFiles.map(f=>({id:crypto.randomUUID(),preview:URL.createObjectURL(f),url:null,uploading:true}));
+    // 为每个文件创建临时预览项（用 data URL 兼容 Electron）
+    const previews=await Promise.all(validFiles.map(f=>readAsDataUrl(f)));
+    const newItems=validFiles.map((f,i)=>({id:crypto.randomUUID(),preview:previews[i],url:null,uploading:true}));
     setRefImages(prev=>[...prev,...newItems]);
     // 批量上传
     const fd=new FormData();
@@ -1093,18 +1096,18 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
       }));
     }catch(e){
       console.error('参考图上传失败',e);
-      // 移除上传失败的项
-      setRefImages(prev=>{
-        const failIds=new Set(newItems.map(n=>n.id));
-        prev.filter(r=>failIds.has(r.id)).forEach(r=>URL.revokeObjectURL(r.preview));
-        return prev.filter(r=>!failIds.has(r.id));
-      });
+      // 上传失败时保留预览，标记为未上传状态
+      setRefImages(prev=>prev.map(item=>{
+        const idx=newItems.findIndex(n=>n.id===item.id);
+        if(idx>=0)return{...item,uploading:false,uploadFailed:true};
+        return item;
+      }));
     }
     if(refInputRef.current)refInputRef.current.value='';
   };
 
-  const removeRefImage=(e,id)=>{e.stopPropagation();setRefImages(prev=>{const item=prev.find(r=>r.id===id);if(item)URL.revokeObjectURL(item.preview);return prev.filter(r=>r.id!==id);});};
-  const clearAllRefs=e=>{e.stopPropagation();setRefImages(prev=>{prev.forEach(r=>URL.revokeObjectURL(r.preview));return[];});if(refInputRef.current)refInputRef.current.value='';};
+  const removeRefImage=(e,id)=>{e.stopPropagation();setRefImages(prev=>prev.filter(r=>r.id!==id));};
+  const clearAllRefs=e=>{e.stopPropagation();setRefImages([]);if(refInputRef.current)refInputRef.current.value='';};
 
   const handleDragEnter=e=>{e.preventDefault();e.stopPropagation();dragCounter.current++;if(supportsRef)setDragging(true);};
   const handleDragLeave=e=>{e.preventDefault();e.stopPropagation();dragCounter.current--;if(dragCounter.current<=0){dragCounter.current=0;setDragging(false);}};
