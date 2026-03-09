@@ -77,7 +77,7 @@ if (fs.existsSync(imagesFile)) {
 
 // GET /api/images — 返回全部（最多200条，倒序）
 app.get('/api/images', (req, res) => {
-  const rows = db.prepare('SELECT * FROM images ORDER BY id DESC LIMIT 200').all();
+  const rows = db.prepare("SELECT * FROM images ORDER BY CASE WHEN created_at IS NOT NULL AND created_at != '' THEN created_at ELSE date END DESC, rowid DESC LIMIT 200").all();
   res.json(rows.map(r => ({ ...r, fav: !!r.fav })));
 });
 
@@ -87,16 +87,16 @@ app.post('/api/images', (req, res) => {
   if (!Array.isArray(records) || records.length === 0)
     return res.status(400).json({ error: '无效数据' });
 
-  const ins = db.prepare('INSERT OR REPLACE INTO images (id, prompt, imageUrl, model, ratio, date, color, fav, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const ins = db.prepare('INSERT OR REPLACE INTO images (id, prompt, imageUrl, model, ratio, date, color, fav, type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   for (const r of records) {
     if (!r?.imageUrl) continue;
-    ins.run(String(r.id ?? Date.now()), r.prompt ?? '', r.imageUrl, r.model ?? '', r.ratio ?? '', r.date ?? new Date().toISOString().slice(0, 10), r.color ?? '#1a1a20', r.fav ? 1 : 0, r.type ?? 'generate');
+    ins.run(String(r.id ?? Date.now()), r.prompt ?? '', r.imageUrl, r.model ?? '', r.ratio ?? '', r.date ?? new Date().toISOString().slice(0, 10), r.color ?? '#1a1a20', r.fav ? 1 : 0, r.type ?? 'generate', new Date().toISOString());
   }
 
   // 保留最新200条
   const count = db.prepare('SELECT COUNT(*) as c FROM images').get().c;
   if (count > 200) {
-    db.prepare('DELETE FROM images WHERE id NOT IN (SELECT id FROM images ORDER BY id DESC LIMIT 200)').run();
+    db.prepare("DELETE FROM images WHERE id NOT IN (SELECT id FROM images ORDER BY CASE WHEN created_at IS NOT NULL AND created_at != '' THEN created_at ELSE date END DESC, rowid DESC LIMIT 200)").run();
   }
   res.json({ ok: true });
 });
@@ -139,19 +139,21 @@ const upload = multer({
 
 const KIE_BASE = 'https://api.kie.ai';
 
-// supportsRefImage: 支持参考图时在 input 里统一用 image_input: [url] 数组
+// supportsRefImage: 支持参考图
+// kieIdImg2Img: 有参考图时切换到图生图模型 ID
+// refField: 图生图时参考图的字段名（各模型不同）
 const MODEL_CONFIG = {
-  'nano-banana-pro':   { type: 'common', kieId: 'nano-banana-pro',              supportsRefImage: true },
-  'nano-banana-2':     { type: 'common', kieId: 'nano-banana-2',                supportsRefImage: true },
+  'nano-banana-pro':   { type: 'common', kieId: 'nano-banana-pro',              supportsRefImage: true, refField: 'image_input' },
+  'nano-banana-2':     { type: 'common', kieId: 'nano-banana-2',                supportsRefImage: true, refField: 'image_input' },
   'nano-banana-edit':  { type: 'common', kieId: 'google/nano-banana-edit' },
-  'seedream-5.0-lite': { type: 'common', kieId: 'seedream/5-lite-text-to-image', supportsRefImage: true },
-  'seedream-4.5':      { type: 'common', kieId: 'seedream/4.5-text-to-image',    supportsRefImage: true },
-  'gpt-image-1.5':     { type: 'common', kieId: 'gpt-image/1.5-text-to-image',   supportsRefImage: true },
+  'seedream-5.0-lite': { type: 'common', kieId: 'seedream/5-lite-text-to-image', kieIdImg2Img: 'seedream/5-lite-image-to-image', supportsRefImage: true, refField: 'image_urls' },
+  'seedream-4.5':      { type: 'common', kieId: 'seedream/4.5-text-to-image',    kieIdImg2Img: 'seedream/4.5-edit',              supportsRefImage: true, refField: 'image_urls' },
+  'gpt-image-1.5':     { type: 'common', kieId: 'gpt-image/1.5-text-to-image',   kieIdImg2Img: 'gpt-image/1.5-image-to-image',   supportsRefImage: true, refField: 'input_urls' },
   'flux-2':            { type: 'common', kieId: 'flux-2/pro-text-to-image'      },
   '4o-image':          { type: '4o',                                              supportsRefImage: true },
   'z-image':           { type: 'common', kieId: 'z-image'                       },
   'midjourney':        { type: 'mj',                                              supportsRefImage: true },
-  'grok-imagine':      { type: 'common', kieId: 'grok-imagine/text-to-image',    supportsRefImage: true },
+  'grok-imagine':      { type: 'common', kieId: 'grok-imagine/text-to-image',    kieIdImg2Img: 'grok-imagine/image-to-image',    supportsRefImage: true, refField: 'image_urls' },
 };
 
 function mapQuality(modelId, quality) {
@@ -179,24 +181,30 @@ function reqAuthHeaders(req) {
   return authHeaders(userKey);
 }
 
-// POST /api/upload — 转发到 kie.ai，返回公网可访问的临时 URL
-app.post('/api/upload', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: '未收到文件' });
+// POST /api/upload — 转发到 kie.ai，返回公网可访问的临时 URL（支持多文件）
+app.post('/api/upload', upload.array('file', 10), async (req, res) => {
+  const files = req.files || [];
+  if (!files.length) return res.status(400).json({ error: '未收到文件' });
   if (!process.env.KIE_API_KEY && !(req.user && getUserApiKey(req.user.id))) return res.status(500).json({ error: 'API Key 未配置，请在侧边栏设置自定义 API Key' });
   try {
-    const fd = new FormData();
-    fd.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname || 'upload.jpg');
-    fd.append('uploadPath', 'images');
-    const response = await fetch('https://kieai.redpandaai.co/api/file-stream-upload', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${process.env.KIE_API_KEY}` },
-      body: fd,
-    });
-    const json = await response.json();
-    console.log('[upload] kie.ai response:', JSON.stringify(json).slice(0, 200));
-    const url = json?.data?.downloadUrl;
-    if (!url) return res.status(502).json({ error: json?.msg || '文件上传失败' });
-    res.json({ url });
+    const urls = [];
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append('file', new Blob([file.buffer], { type: file.mimetype }), file.originalname || 'upload.jpg');
+      fd.append('uploadPath', 'images');
+      const response = await fetch('https://kieai.redpandaai.co/api/file-stream-upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.KIE_API_KEY}` },
+        body: fd,
+      });
+      const json = await response.json();
+      console.log('[upload] kie.ai response:', JSON.stringify(json).slice(0, 200));
+      const url = json?.data?.downloadUrl;
+      if (!url) return res.status(502).json({ error: json?.msg || '文件上传失败' });
+      urls.push(url);
+    }
+    // 兼容旧接口：单文件返回 url，多文件返回 urls 数组
+    res.json({ url: urls[0], urls });
   } catch (err) {
     console.error('[upload] 异常:', err.message);
     res.status(502).json({ error: err.message });
@@ -227,10 +235,12 @@ async function resolveRefImageUrl(url) {
 
 // POST /api/generate
 app.post('/api/generate', creditsCheck('generate'), async (req, res) => {
-  const { prompt, model, aspectRatio, resolution, quality, outputFormat, refImageUrl } = req.body;
+  const { prompt, model, aspectRatio, resolution, quality, outputFormat, refImageUrl, refImageUrls } = req.body;
+  // 兼容旧单张和新多张：统一为数组
+  const refUrls = refImageUrls || (refImageUrl ? [refImageUrl] : []);
 
-  console.log(`\n[generate] model=${model} aspectRatio=${aspectRatio} hasRefImage=${!!refImageUrl}`);
-  if (refImageUrl) console.log(`[generate] refImageUrl=${refImageUrl.slice(0, 80)}...`);
+  console.log(`\n[generate] model=${model} aspectRatio=${aspectRatio} refImages=${refUrls.length}`);
+  if (refUrls.length) console.log(`[generate] refImageUrls[0]=${refUrls[0].slice(0, 80)}...`);
 
   if (!prompt?.trim()) return res.status(400).json({ error: 'prompt 不能为空' });
   if (!process.env.KIE_API_KEY && !(req.user && getUserApiKey(req.user.id))) return res.status(500).json({ error: 'API Key 未配置，请在侧边栏设置自定义 API Key' });
@@ -241,7 +251,8 @@ app.post('/api/generate', creditsCheck('generate'), async (req, res) => {
   try {
     let taskId;
     // 解析参考图 URL（本地图片转 base64）
-    const resolvedRef = await resolveRefImageUrl(refImageUrl);
+    const resolvedRefs = (await Promise.all(refUrls.map(u => resolveRefImageUrl(u)))).filter(Boolean);
+    const resolvedRef = resolvedRefs[0] || null;
 
     if (config.type === 'mj') {
       const body = {
@@ -263,7 +274,7 @@ app.post('/api/generate', creditsCheck('generate'), async (req, res) => {
     } else if (config.type === '4o') {
       const body = { prompt, size: aspectRatio || '1:1', nVariants: 1 };
       if (quality === 'high') body.isEnhance = true;
-      if (resolvedRef) body.image_input = [resolvedRef];
+      if (resolvedRefs.length) body.image_input = resolvedRefs;
       console.log('[generate][4o] request body keys:', Object.keys(body));
       const response = await fetch(`${KIE_BASE}/api/v1/gpt4o-image/generate`, {
         method: 'POST', headers: reqAuthHeaders(req), body: JSON.stringify(body),
@@ -283,13 +294,17 @@ app.post('/api/generate', creditsCheck('generate'), async (req, res) => {
 
       // nano-banana 系列 API 要求必须带 image_input 字段（无参考图时传空数组）
       if (model === 'nano-banana-pro' || model === 'nano-banana-2') {
-        input.image_input = resolvedRef ? [resolvedRef] : [];
-      } else if (resolvedRef && config.supportsRefImage) {
-        input.image_input = [resolvedRef];
+        input.image_input = resolvedRefs.length ? resolvedRefs : [];
+      } else if (resolvedRefs.length && config.supportsRefImage) {
+        // 各模型图生图字段名不同：image_input / image_urls / input_urls
+        const field = config.refField || 'image_input';
+        input[field] = resolvedRefs;
       }
 
-      const requestBody = { model: config.kieId, input };
-      console.log('[generate][common] kieId:', config.kieId);
+      // 有参考图且模型配置了图生图 ID 时，切换到 img2img 端点
+      const useKieId = (resolvedRefs.length && config.kieIdImg2Img) ? config.kieIdImg2Img : config.kieId;
+      const requestBody = { model: useKieId, input };
+      console.log('[generate][common] kieId:', useKieId, resolvedRefs.length ? '(img2img)' : '(txt2img)');
       console.log('[generate][common] input keys:', Object.keys(input));
       if (input.image_input) console.log('[generate][common] image_input[0] prefix:', String(input.image_input[0]).slice(0, 60));
 

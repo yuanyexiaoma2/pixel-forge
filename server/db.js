@@ -109,13 +109,19 @@ db.exec(`
     date TEXT NOT NULL DEFAULT (date('now')),
     color TEXT NOT NULL DEFAULT '#1a1a20',
     fav INTEGER NOT NULL DEFAULT 0,
-    type TEXT NOT NULL DEFAULT 'generate'
+    type TEXT NOT NULL DEFAULT 'generate',
+    created_at TEXT DEFAULT ''
   )
 `);
 
 // 迁移：为旧表添加 type 列
 try {
   db.exec(`ALTER TABLE images ADD COLUMN type TEXT NOT NULL DEFAULT 'generate'`);
+} catch (_) { /* 列已存在 */ }
+
+// 迁移：为 images 表添加 created_at 列（精确时间戳，用于排序）
+try {
+  db.exec(`ALTER TABLE images ADD COLUMN created_at TEXT DEFAULT ''`);
 } catch (_) { /* 列已存在 */ }
 
 // 迁移：为 users 表添加 api_key 列

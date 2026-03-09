@@ -66,7 +66,7 @@ const MODELS = [
     tag:"New", color:"#22d3ee", speed:3, supportsRefImage:true,
     desc:"字节跳动出品，性价比极高的快速生成模型",
     options:{
-      aspectRatios:["1:1","2:3","3:2","3:4","4:3","9:16","16:9"],
+      aspectRatios:["1:1","2:3","3:2","3:4","4:3","9:16","16:9","21:9"],
       qualities:[{value:"basic",label:"Basic (2K)"},{value:"high",label:"High (3K)"}],
     },
   },
@@ -101,8 +101,8 @@ const MODELS = [
     tag:"Featured", color:"#818cf8", speed:2, supportsRefImage:true,
     desc:"Midjourney v7，顶级艺术风格图像生成",
     options:{
-      aspectRatios:["1:1","2:3","3:2","3:4","4:3","5:6","9:16","16:9"],
-      speeds:[{value:"relax",label:"Relax"},{value:"fast",label:"Fast"},{value:"turbo",label:"Turbo"}],
+      aspectRatios:["1:1","1:2","2:1","2:3","3:2","3:4","4:3","5:6","6:5","9:16","16:9","9:2"],
+      speeds:[{value:"relaxed",label:"Relaxed"},{value:"fast",label:"Fast"},{value:"turbo",label:"Turbo"}],
     },
   },
   {
@@ -361,6 +361,12 @@ function ModelCard({model,selected,onClick}){
 // 全屏查看器
 function Lightbox({image,onClose,onEdit,apiFetch:apiFetchProp}){
   const apiFetch=apiFetchProp||fetch;
+  const[zoomed,setZoomed]=useState(false);
+  const[pos,setPos]=useState({x:0,y:0});
+  const dragging=useRef(false);
+  const lastPt=useRef({x:0,y:0});
+  const containerRef=useRef(null);
+
   const doDownload=async e=>{
     e.stopPropagation();
     if(!image.imageUrl)return;
@@ -374,34 +380,76 @@ function Lightbox({image,onClose,onEdit,apiFetch:apiFetchProp}){
       URL.revokeObjectURL(href);
     }catch(err){console.error('下载失败',err);}
   };
+
+  const toggleZoom=e=>{
+    e.stopPropagation();
+    if(!zoomed){
+      // 以点击位置为中心放大
+      const rect=containerRef.current?.getBoundingClientRect();
+      if(rect){
+        const cx=e.clientX-rect.left-rect.width/2;
+        const cy=e.clientY-rect.top-rect.height/2;
+        setPos({x:-cx,y:-cy});
+      }
+      setZoomed(true);
+    }else{
+      setZoomed(false);setPos({x:0,y:0});
+    }
+  };
+
+  const onPointerDown=e=>{if(!zoomed)return;e.preventDefault();dragging.current=true;lastPt.current={x:e.clientX,y:e.clientY};e.currentTarget.setPointerCapture(e.pointerId);};
+  const onPointerMove=e=>{if(!dragging.current)return;const dx=e.clientX-lastPt.current.x;const dy=e.clientY-lastPt.current.y;lastPt.current={x:e.clientX,y:e.clientY};setPos(p=>({x:p.x+dx,y:p.y+dy}));};
+  const onPointerUp=()=>{dragging.current=false;};
+
+  const onWheel=e=>{
+    if(!zoomed)return;
+    e.stopPropagation();
+    setPos(p=>({x:p.x-e.deltaX,y:p.y-e.deltaY}));
+  };
+
   useEffect(()=>{
-    const h=e=>{if(e.key==='Escape')onClose();};
+    const h=e=>{if(e.key==='Escape'){if(zoomed){setZoomed(false);setPos({x:0,y:0});}else onClose();}};
     document.addEventListener('keydown',h);return()=>document.removeEventListener('keydown',h);
-  },[onClose]);
+  },[onClose,zoomed]);
+
   return createPortal(
-    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.65)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeIn .15s ease-out",cursor:"zoom-out"}}>
-      <button onClick={onClose} style={{position:"absolute",top:16,right:16,width:36,height:36,borderRadius:8,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.06)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1}}>{Icons.x}</button>
-      <div onClick={e=>e.stopPropagation()} style={{maxWidth:"min(90vw,960px)",width:"100%",display:"flex",flexDirection:"column",gap:12,animation:"scaleIn .2s ease-out",cursor:"default"}}>
-        <img src={image.imageUrl} alt={image.prompt} style={{width:"100%",maxHeight:"76vh",objectFit:"contain",borderRadius:10}}/>
-        <div style={{display:"flex",alignItems:"center",gap:14,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",borderRadius:10,padding:"12px 16px"}}>
-          <div style={{flex:1,minWidth:0}}>
-            <p style={{fontSize:13,fontWeight:500,lineHeight:1.6,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{image.prompt}</p>
-            <div style={{display:"flex",gap:12}}>
-              <span style={{fontSize:11,color:"var(--t3)"}}>{image.model}</span>
-              {image.ratio&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{image.ratio}</span>}
-              <span style={{fontSize:11,color:"var(--t3)"}}>{image.date}</span>
+    <div onClick={zoomed?()=>{setZoomed(false);setPos({x:0,y:0});}:onClose} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.65)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",display:"flex",alignItems:"center",justifyContent:"center",padding:zoomed?0:24,animation:"fadeIn .15s ease-out",cursor:zoomed?"grab":"zoom-out",overflow:"hidden"}}>
+      <button onClick={e=>{e.stopPropagation();if(zoomed){setZoomed(false);setPos({x:0,y:0});}else onClose();}} style={{position:"absolute",top:16,right:16,width:36,height:36,borderRadius:8,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.06)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>{Icons.x}</button>
+      {/* 放大模式提示 */}
+      {zoomed&&<div style={{position:"absolute",top:16,left:"50%",transform:"translateX(-50%)",padding:"6px 16px",borderRadius:8,background:"rgba(0,0,0,.7)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.7)",fontSize:12,zIndex:10,pointerEvents:"none"}}>拖拽平移 · 点击退出放大 · Esc 返回</div>}
+      {zoomed?(
+        <div ref={containerRef} onClick={e=>e.stopPropagation()} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onWheel={onWheel} style={{position:"absolute",inset:0,overflow:"hidden",cursor:dragging.current?"grabbing":"grab",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <img src={image.imageUrl} alt={image.prompt} draggable={false} style={{transformOrigin:"center center",transform:`translate(${pos.x}px,${pos.y}px)`,maxWidth:"none",maxHeight:"none",userSelect:"none",pointerEvents:"none"}}/>
+        </div>
+      ):(
+        <div onClick={e=>e.stopPropagation()} style={{maxWidth:"min(90vw,960px)",width:"100%",display:"flex",flexDirection:"column",gap:12,animation:"scaleIn .2s ease-out",cursor:"default"}}>
+          <div ref={containerRef} onClick={toggleZoom} style={{cursor:"zoom-in",position:"relative"}}>
+            <img src={image.imageUrl} alt={image.prompt} style={{width:"100%",maxHeight:"76vh",objectFit:"contain",borderRadius:10}}/>
+            <div style={{position:"absolute",bottom:10,right:10,padding:"5px 12px",borderRadius:8,background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.7)",fontSize:11,display:"flex",alignItems:"center",gap:5,pointerEvents:"none"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              点击放大查看原图
             </div>
           </div>
-          <div style={{display:"flex",gap:6,flexShrink:0}}>
-            {onEdit&&<button onClick={e=>{e.stopPropagation();onClose();onEdit(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-              {Icons.edit}编辑
-            </button>}
-            <button onClick={doDownload} style={{padding:"8px 18px",borderRadius:6,border:"none",background:"var(--ac)",color:"var(--bg0)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-              {Icons.download}下载原图
-            </button>
+          <div style={{display:"flex",alignItems:"center",gap:14,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",borderRadius:10,padding:"12px 16px"}}>
+            <div style={{flex:1,minWidth:0}}>
+              <p style={{fontSize:13,fontWeight:500,lineHeight:1.6,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{image.prompt}</p>
+              <div style={{display:"flex",gap:12}}>
+                <span style={{fontSize:11,color:"var(--t3)"}}>{image.model}</span>
+                {image.ratio&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{image.ratio}</span>}
+                <span style={{fontSize:11,color:"var(--t3)"}}>{image.date}</span>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:6,flexShrink:0}}>
+              {onEdit&&<button onClick={e=>{e.stopPropagation();onClose();onEdit(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                {Icons.edit}编辑
+              </button>}
+              <button onClick={doDownload} style={{padding:"8px 18px",borderRadius:6,border:"none",background:"var(--ac)",color:"var(--bg0)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                {Icons.download}下载原图
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>,
     document.body
   );
@@ -587,7 +635,6 @@ function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
   const[results,setResults]=useState([]);
   const[dragging,setDragging]=useState(false);
   const[progress,setProgress]=useState(0);
-  const[viewingResult,setViewingResult]=useState(null);
 
   const handleFile=f=>{
     if(!f||!f.type.startsWith('image/'))return;
@@ -631,7 +678,7 @@ function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
       <div onClick={()=>fileInputRef.current?.click()} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);handleFile(e.dataTransfer.files[0]);}} style={{background:dragging?"rgba(124,184,196,.04)":"var(--bgc)",border:`1.5px dashed ${dragging?"var(--cy)":"var(--bd)"}`,borderRadius:10,padding:previewUrl?0:"40px 36px",textAlign:"center",cursor:"pointer",transition:"all .2s",marginBottom:16,overflow:"hidden",position:"relative",minHeight:previewUrl?220:200,display:"flex",alignItems:"center",justifyContent:"center"}}>
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
         {previewUrl?(
-          <><img src={previewUrl} alt="preview" style={{width:"100%",maxHeight:360,objectFit:"contain",display:"block",borderRadius:18}}/><div style={{position:"absolute",bottom:12,right:12,padding:"6px 14px",borderRadius:10,background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.12)",fontSize:12,color:"rgba(255,255,255,.7)",backdropFilter:"blur(8px)"}}>点击更换图片</div></>
+          <><img src={previewUrl} alt="preview" style={{width:"100%",maxHeight:360,objectFit:"contain",display:"block",borderRadius:18}}/><div style={{position:"absolute",bottom:12,right:12,display:"flex",gap:6}}><div style={{padding:"6px 14px",borderRadius:10,background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.12)",fontSize:12,color:"rgba(255,255,255,.7)",backdropFilter:"blur(8px)"}}>点击更换图片</div><div onClick={e=>{e.stopPropagation();if(previewUrl)URL.revokeObjectURL(previewUrl);setFile(null);setPreviewUrl(null);setResults([]);setError(null);}} style={{padding:"6px 14px",borderRadius:10,background:"rgba(239,68,68,.6)",border:"1px solid rgba(239,68,68,.4)",fontSize:12,color:"#fff",backdropFilter:"blur(8px)",cursor:"pointer"}}>删除</div></div></>
         ):(
           <div>
             <div style={{width:56,height:56,borderRadius:12,margin:"0 auto 16px",background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid var(--bd)",color:"var(--t3)"}}>{Icons.upload}</div>
@@ -652,31 +699,6 @@ function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
         </button>
       </div>
       {error&&<div style={{padding:"12px 16px",borderRadius:12,background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.2)",color:"#ef4444",fontSize:13,marginBottom:16}}>{error}</div>}
-      {results.length>0&&(
-        <div style={{marginTop:8}}>
-          <h4 style={{fontSize:14,fontWeight:700,marginBottom:12,color:"var(--cy)"}}>⚡ 增强完成</h4>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
-            {results.map((url,i)=>{
-              const img={id:Date.now()+i,imageUrl:url,prompt:`${factor}× 超分增强`,model:"Topaz Upscale",ratio:"",date:today,fav:false,color:"#1a1a20"};
-              return(
-                <div key={i} style={{borderRadius:14,overflow:"hidden",border:"1px solid var(--bdl)",background:"var(--bgc)"}}>
-                  <div onClick={()=>setViewingResult(img)} style={{cursor:"zoom-in",position:"relative"}}>
-                    <img src={url} alt="enhanced" style={{width:"100%",display:"block",maxHeight:320,objectFit:"contain",background:"#111"}}/>
-                    <div style={{position:"absolute",top:10,right:10,padding:"4px 10px",borderRadius:8,background:"rgba(34,211,238,.15)",border:"1px solid var(--cy)",color:"var(--cy)",fontSize:11,fontWeight:700}}>{factor}× 超分</div>
-                  </div>
-                  <div style={{padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{fontSize:12,color:"var(--t3)"}}>Topaz Upscale · {today}</span>
-                    <button onClick={async()=>{try{const res=await apiFetch(`/api/download?url=${encodeURIComponent(url)}`);const blob=await res.blob();const href=URL.createObjectURL(blob);const a=document.createElement('a');a.href=href;a.download=`enhanced-${factor}x-${Date.now()}.jpg`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(href);}catch(e){console.error(e);}}} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:9,border:"none",background:"var(--ac)",color:"#fff",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-                      {Icons.download}下载
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {viewingResult&&<Lightbox image={viewingResult} onClose={()=>setViewingResult(null)}/>}
     </div>
   );
 }
@@ -798,9 +820,9 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
 
       {/* 提示词输入框 + 参数栏（与图像生成一致） */}
       <div style={{background:"var(--bgc)",borderRadius:12,border:"1px solid var(--bd)",marginBottom:14,position:"relative",zIndex:50}}>
-        {/* 参考图预览（img2video 模式，输入框内顶部） */}
+        {/* 参考图预览（img2video 模式，输入框内顶部，与图像生成一致） */}
         {mode==='img2video'&&refPreview&&(
-          <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid var(--bd)",background:"rgba(212,165,116,.04)"}}>
+          <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid var(--bd)",background:"rgba(212,165,116,.04)",flexWrap:"wrap"}}>
             <div style={{position:"relative",flexShrink:0}}>
               <img src={refPreview} style={{width:44,height:44,borderRadius:8,objectFit:"cover",border:uploadingRef?"1.5px solid var(--t3)":"1.5px solid var(--ac)",opacity:uploadingRef?.6:1,display:"block"}}/>
               {uploadingRef?(
@@ -811,13 +833,15 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
                 <button onClick={clearRef} title="移除参考图" style={{position:"absolute",top:-4,right:-4,width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(0,0,0,.75)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:12,lineHeight:1,fontWeight:700}}>×</button>
               )}
             </div>
-            <div>
-              <div style={{fontSize:13,fontWeight:500,color:uploadingRef?"var(--t3)":"var(--t1)"}}>{uploadingRef?"上传中...":"参考图已添加"}</div>
-              {!uploadingRef&&<div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>将根据此图生成视频 · 点击 × 移除</div>}
+            <div style={{display:"flex",flexDirection:"column",justifyContent:"center",gap:2,marginLeft:4}}>
+              <div style={{fontSize:13,fontWeight:500,color:uploadingRef?"var(--t3)":"var(--t1)"}}>{uploadingRef?"上传中...":"1 张参考图"}</div>
+              {!uploadingRef&&<div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span onClick={()=>refInputRef.current?.click()} style={{fontSize:11,color:"var(--ac)",cursor:"pointer"}}>更换</span>
+                <span onClick={clearRef} style={{fontSize:11,color:"var(--t3)",cursor:"pointer"}}>移除</span>
+              </div>}
             </div>
           </div>
         )}
-
         <textarea
           value={prompt}
           onChange={e=>setPrompt(e.target.value)}
@@ -882,12 +906,9 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {mode==='img2video'&&(
             <div data-pill style={{position:"relative",display:"flex",alignItems:"center"}}>
               {refPreview?(
-                <button onClick={()=>refInputRef.current?.click()} style={{...pillStyle(false),gap:6,paddingLeft:4}}>
-                  <div style={{position:"relative",width:26,height:26,flexShrink:0}}>
-                    <img src={refPreview} style={{width:26,height:26,borderRadius:10,objectFit:"cover",display:"block",opacity:uploadingRef?.5:1}}/>
-                    {uploadingRef&&<span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{width:10,height:10,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin .8s linear infinite",display:"inline-block"}}/></span>}
-                  </div>
-                  {uploadingRef?"上传中...":"参考图"}
+                <button onClick={()=>refInputRef.current?.click()} style={pillStyle(false)}>
+                  {Icons.uploadSm}
+                  {uploadingRef?"上传中...":"参考图 1"}
                   <button onClick={clearRef} style={{display:"flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(255,255,255,.12)",color:"var(--t3)",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,fontWeight:700,marginLeft:2}}>×</button>
                 </button>
               ):(
@@ -1023,10 +1044,10 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
   const[pendingTasks,setPendingTasks]=useState([]);
   const[pendingVideoTasks,setPendingVideoTasks]=useState([]);
   const[openDropdown,setOpenDropdown]=useState(null);
-  // 参考图
-  const[refImageUrl,setRefImageUrl]=useState(null);
-  const[refPreview,setRefPreview]=useState(null);
-  const[uploadingRef,setUploadingRef]=useState(false);
+  // 参考图（多张）
+  const[refImages,setRefImages]=useState([]); // [{url, preview, uploading}]
+  const[dragging,setDragging]=useState(false);
+  const dragCounter=useRef(0);
   // 编辑
   const[editImage,setEditImage]=useState(null);
 
@@ -1041,7 +1062,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
     setOutputFormat(o.outputFormats?.[0]??null);
     setSpeed(o.speeds?.[1]?.value??null);
     setOpenDropdown(null);
-    if(!MODELS[selModel].supportsRefImage){setRefImageUrl(null);setRefPreview(null);}
+    if(!MODELS[selModel].supportsRefImage){setRefImages(prev=>{prev.forEach(r=>URL.revokeObjectURL(r.preview));return[];});}
   },[selModel]);
 
   useEffect(()=>{
@@ -1050,22 +1071,45 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
     return ()=>document.removeEventListener('click',handler);
   },[]);
 
-  const handleRefFile=async f=>{
-    if(!f||!f.type.startsWith('image/'))return;
-    if(refPreview)URL.revokeObjectURL(refPreview);
-    setRefPreview(URL.createObjectURL(f));
-    setUploadingRef(true);
+  const handleRefFiles=async files=>{
+    const validFiles=[...files].filter(f=>f.type.startsWith('image/'));
+    if(!validFiles.length)return;
+    // 为每个文件创建临时预览项
+    const newItems=validFiles.map(f=>({id:crypto.randomUUID(),preview:URL.createObjectURL(f),url:null,uploading:true}));
+    setRefImages(prev=>[...prev,...newItems]);
+    // 批量上传
+    const fd=new FormData();
+    validFiles.forEach(f=>fd.append('file',f));
     try{
-      const fd=new FormData();fd.append('file',f);
       const res=await apiFetch('/api/upload',{method:'POST',body:fd});
-      const{url,error:err}=await res.json();
-      if(!url)throw new Error(err);
-      setRefImageUrl(url);
-    }catch(e){console.error('参考图上传失败',e);setRefPreview(null);}
-    finally{setUploadingRef(false);}
+      const data=await res.json();
+      if(data.error)throw new Error(data.error);
+      const urls=data.urls||[data.url];
+      setRefImages(prev=>prev.map(item=>{
+        const idx=newItems.findIndex(n=>n.id===item.id);
+        if(idx>=0&&urls[idx])return{...item,url:urls[idx],uploading:false};
+        if(idx>=0)return{...item,uploading:false}; // 上传失败的保留预览
+        return item;
+      }));
+    }catch(e){
+      console.error('参考图上传失败',e);
+      // 移除上传失败的项
+      setRefImages(prev=>{
+        const failIds=new Set(newItems.map(n=>n.id));
+        prev.filter(r=>failIds.has(r.id)).forEach(r=>URL.revokeObjectURL(r.preview));
+        return prev.filter(r=>!failIds.has(r.id));
+      });
+    }
+    if(refInputRef.current)refInputRef.current.value='';
   };
 
-  const clearRef=e=>{e.stopPropagation();if(refPreview)URL.revokeObjectURL(refPreview);setRefImageUrl(null);setRefPreview(null);if(refInputRef.current)refInputRef.current.value='';};
+  const removeRefImage=(e,id)=>{e.stopPropagation();setRefImages(prev=>{const item=prev.find(r=>r.id===id);if(item)URL.revokeObjectURL(item.preview);return prev.filter(r=>r.id!==id);});};
+  const clearAllRefs=e=>{e.stopPropagation();setRefImages(prev=>{prev.forEach(r=>URL.revokeObjectURL(r.preview));return[];});if(refInputRef.current)refInputRef.current.value='';};
+
+  const handleDragEnter=e=>{e.preventDefault();e.stopPropagation();dragCounter.current++;if(supportsRef)setDragging(true);};
+  const handleDragLeave=e=>{e.preventDefault();e.stopPropagation();dragCounter.current--;if(dragCounter.current<=0){dragCounter.current=0;setDragging(false);}};
+  const handleDragOver=e=>{e.preventDefault();e.stopPropagation();};
+  const handleDrop=e=>{e.preventDefault();e.stopPropagation();dragCounter.current=0;setDragging(false);if(!supportsRef)return;const files=e.dataTransfer?.files;if(files?.length)handleRefFiles(files);};
 
   const removePendingTask=id=>setPendingTasks(prev=>prev.filter(t=>t.id!==id));
 
@@ -1086,7 +1130,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
           ...(resolution&&{resolution}),
           ...(quality&&{quality}),
           ...(outputFormat&&{outputFormat:outputFormat.toLowerCase()}),
-          ...(refImageUrl&&{refImageUrl}),
+          ...(refImages.length>0&&{refImageUrls:refImages.filter(r=>r.url).map(r=>r.url)}),
           ...(speed&&{speed}),
         }),
       });
@@ -1132,28 +1176,39 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
         <span style={{fontFamily:"'Outfit',sans-serif",fontSize:36,fontWeight:800,letterSpacing:"-.03em",color:"var(--t1)"}}>PictureMe</span>
       </div>
 
-      {tab==="generate"?(
-        <>
+      {/* generate / video / enhance 输入区：用 display 隐藏保留状态 */}
+      <div style={{display:tab==="generate"?'block':'none'}}>
           {/* ── 主输入区 ── */}
-          <div style={{background:"var(--bgc)",borderRadius:12,border:"1px solid var(--bd)",marginBottom:14,position:"relative",zIndex:10}}>
+          <div onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop} style={{background:"var(--bgc)",borderRadius:12,border:dragging&&supportsRef?"1.5px dashed var(--ac)":"1px solid var(--bd)",marginBottom:14,position:"relative",zIndex:10,transition:"border .15s"}}>
+            {/* 拖拽提示遮罩 */}
+            {dragging&&supportsRef&&(
+              <div style={{position:"absolute",inset:0,borderRadius:12,background:"rgba(212,165,116,.08)",zIndex:20,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+                <span style={{fontSize:15,fontWeight:600,color:"var(--ac)"}}>松开以添加参考图</span>
+              </div>
+            )}
             {/* hidden file input for ref image */}
-            <input ref={refInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>handleRefFile(e.target.files[0])}/>
-            {/* 参考图预览（输入框内顶部，像附件一样） */}
-            {refPreview&&(
-              <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid var(--bd)",background:"rgba(212,165,116,.04)"}}>
-                <div style={{position:"relative",flexShrink:0}}>
-                  <img src={refPreview} style={{width:44,height:44,borderRadius:8,objectFit:"cover",border:uploadingRef?"1.5px solid var(--t3)":"1.5px solid var(--ac)",opacity:uploadingRef?.6:1,display:"block"}}/>
-                  {uploadingRef?(
-                    <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:8,background:"rgba(0,0,0,.5)"}}>
-                      <span style={{width:12,height:12,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin .8s linear infinite",display:"inline-block"}}/>
-                    </div>
-                  ):(
-                    <button onClick={clearRef} title="移除参考图" style={{position:"absolute",top:-4,right:-4,width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(0,0,0,.75)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:12,lineHeight:1,fontWeight:700}}>×</button>
-                  )}
-                </div>
-                <div>
-                  <div style={{fontSize:13,fontWeight:500,color:uploadingRef?"var(--t3)":"var(--t1)"}}>{uploadingRef?"上传中...":"参考图已添加"}</div>
-                  {!uploadingRef&&<div style={{fontSize:11,color:"var(--t3)",marginTop:2}}>将作为参考传给模型 · 点击 × 移除</div>}
+            <input ref={refInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple style={{display:"none"}} onChange={e=>handleRefFiles(e.target.files)}/>
+            {/* 参考图预览（输入框内顶部，支持多张） */}
+            {refImages.length>0&&(
+              <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid var(--bd)",background:"rgba(212,165,116,.04)",flexWrap:"wrap"}}>
+                {refImages.map(ref=>(
+                  <div key={ref.id} style={{position:"relative",flexShrink:0}}>
+                    <img src={ref.preview} style={{width:44,height:44,borderRadius:8,objectFit:"cover",border:ref.uploading?"1.5px solid var(--t3)":"1.5px solid var(--ac)",opacity:ref.uploading?.6:1,display:"block"}}/>
+                    {ref.uploading?(
+                      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:8,background:"rgba(0,0,0,.5)"}}>
+                        <span style={{width:12,height:12,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin .8s linear infinite",display:"inline-block"}}/>
+                      </div>
+                    ):(
+                      <button onClick={e=>removeRefImage(e,ref.id)} title="移除参考图" style={{position:"absolute",top:-4,right:-4,width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(0,0,0,.75)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontSize:12,lineHeight:1,fontWeight:700}}>×</button>
+                    )}
+                  </div>
+                ))}
+                <div style={{display:"flex",flexDirection:"column",justifyContent:"center",gap:2,marginLeft:4}}>
+                  <div style={{fontSize:13,fontWeight:500,color:refImages.some(r=>r.uploading)?"var(--t3)":"var(--t1)"}}>{refImages.some(r=>r.uploading)?"上传中...":`${refImages.length} 张参考图`}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span onClick={()=>refInputRef.current?.click()} style={{fontSize:11,color:"var(--ac)",cursor:"pointer"}}>继续添加</span>
+                    <span onClick={clearAllRefs} style={{fontSize:11,color:"var(--t3)",cursor:"pointer"}}>全部移除</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1201,14 +1256,11 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                     {/* Image prompt pill */}
                     {supportsRef&&(
                       <div data-pill style={{position:"relative",display:"flex",alignItems:"center"}}>
-                        {refPreview?(
-                          <button onClick={()=>refInputRef.current?.click()} style={{...pillStyle(false),gap:6,paddingLeft:4}}>
-                            <div style={{position:"relative",width:26,height:26,flexShrink:0}}>
-                              <img src={refPreview} style={{width:26,height:26,borderRadius:10,objectFit:"cover",display:"block",opacity:uploadingRef?.5:1}}/>
-                              {uploadingRef&&<span style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{width:10,height:10,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin .8s linear infinite",display:"inline-block"}}/></span>}
-                            </div>
-                            {uploadingRef?"上传中...":"参考图"}
-                            <button onClick={clearRef} style={{display:"flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(255,255,255,.12)",color:"var(--t3)",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,fontWeight:700,marginLeft:2}}>×</button>
+                        {refImages.length>0?(
+                          <button onClick={()=>refInputRef.current?.click()} style={pillStyle(false)}>
+                            {Icons.uploadSm}
+                            {refImages.some(r=>r.uploading)?"上传中...":`参考图 ${refImages.length}`}
+                            <button onClick={clearAllRefs} style={{display:"flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(255,255,255,.12)",color:"var(--t3)",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,fontWeight:700,marginLeft:2}}>×</button>
                           </button>
                         ):(
                           <button onClick={()=>refInputRef.current?.click()} style={pillStyle(false)}>
@@ -1331,12 +1383,13 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
               })()}
             </div>
           </div>
-        </>
-      ):tab==="video"?(
+      </div>
+      <div style={{display:tab==="video"?'block':'none'}}>
         <VideoTab apiFetch={apiFetch} refreshCredits={refreshCredits} addImages={addImages} pendingVideoTasks={pendingVideoTasks} setPendingVideoTasks={setPendingVideoTasks}/>
-      ):(
+      </div>
+      <div style={{display:tab==="enhance"?'block':'none'}}>
         <EnhanceTab apiFetch={apiFetch} addImages={addImages} refreshCredits={refreshCredits}/>
-      )}
+      </div>
 
       {/* 最近生成 — 按 tab 过滤 */}
       {(()=>{
@@ -1454,8 +1507,9 @@ function LibraryPage({favorites=false,images=[],toggleFav,deleteImage,apiFetch})
   const base=favorites?images.filter(i=>i.fav):images;
   const displayed=base.filter(img=>{
     if(filter==="全部")return true;
-    if(!img.date)return false;
-    const d=new Date(img.date);
+    const raw=img.created_at||img.date;
+    if(!raw)return false;
+    const d=new Date(raw);
     if(filter==="本周")return d>=weekAgo;
     if(filter==="本月")return d>=monthAgo;
     return true;
@@ -1825,10 +1879,11 @@ export default function App(){
           </div>
         </header>
         <div style={{padding:"24px 28px 48px"}}>
-          {page===PAGES.HOME&&<HomePage tab={tab} setTab={setTab} images={images} addImages={addImages} loadingImages={loadingImages} toggleFav={toggleFav} deleteImage={deleteImage} apiFetch={apiFetch} currentUser={currentUser} refreshCredits={refreshCredits}/>}
+          {/* HomePage 始终挂载，切换页面时隐藏而非卸载，保留 pendingTasks/refImages 等状态 */}
+          <div style={{display:page===PAGES.HOME?'block':'none'}}><HomePage tab={tab} setTab={setTab} images={images} addImages={addImages} loadingImages={loadingImages} toggleFav={toggleFav} deleteImage={deleteImage} apiFetch={apiFetch} currentUser={currentUser} refreshCredits={refreshCredits}/></div>
           {page===PAGES.LIBRARY&&<LibraryPage images={images} toggleFav={toggleFav} deleteImage={deleteImage} apiFetch={apiFetch}/>}
           {page===PAGES.FAVORITES&&<LibraryPage favorites images={images} toggleFav={toggleFav} deleteImage={deleteImage} apiFetch={apiFetch}/>}
-                    {page===PAGES.ADMIN&&currentUser?.role==='admin'&&<AdminPage apiFetch={apiFetch}/>}
+          {page===PAGES.ADMIN&&currentUser?.role==='admin'&&<AdminPage apiFetch={apiFetch}/>}
         </div>
       </main>
     </div>
