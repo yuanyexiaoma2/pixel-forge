@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,8 +26,8 @@ jobs:
       - name: Create .env file
         shell: bash
         run: |
-          echo "KIE_API_KEY=${{ secrets.KIE_API_KEY }}" >> .env
-          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "PORT=3001" >> .env
+          if [ -n "${{ secrets.JWT_SECRET }}" ]; then echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env; fi
 
       - name: Install dependencies
         shell: bash
