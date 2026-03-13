@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import * as api from "./api.js";
 
 const PAGES = { HOME: "home", LIBRARY: "library", FAVORITES: "favorites", ADMIN: "admin" };
+
+const extFromBlob = (blob) => {
+  const t = blob.type || '';
+  if (t.includes('png')) return 'png';
+  if (t.includes('webp')) return 'webp';
+  if (t.includes('gif')) return 'gif';
+  return 'jpg';
+};
 
 const MeshGradient = () => (
   <div style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0, borderRadius: "inherit" }}>
@@ -35,6 +44,23 @@ const Icons = {
   video: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>,
   key: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
   edit: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  // pill bar icons (14x14, stroke style)
+  pillModel: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>,
+  pillRatio: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="14" height="12" rx="2"/><rect x="9" y="9" width="12" height="10" rx="2"/></svg>,
+  pillRes: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8V4h4"/><path d="M16 4h4v4"/><path d="M20 16v4h-4"/><path d="M8 20H4v-4"/></svg>,
+  pillQuality: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  pillSpeed: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  pillFormat: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+  pillRef: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
+  pillDuration: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  pillSound: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
+  pillMute: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>,
+  pillLens: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+  pillLensLock: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  pillMode: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>,
+  pillVideo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+  pillStar: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 1C10 7 7 10 1 10c6 0 9 3 9 9 0-6 3-9 9-9-6 0-9-3-9-9z"/><path d="M18 13c0 3.5-1.5 5-5 5 3.5 0 5 1.5 5 5 0-3.5 1.5-5 5-5-3.5 0-5-1.5-5-5z"/></svg>,
+  pillSend: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
   mail: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
   eye: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   eyeOff: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
@@ -179,9 +205,16 @@ const SAMPLE_IMAGES = [
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-:root{--bg0:#111113;--bg1:#161618;--bg2:#1c1c1f;--bgc:#19191c;--bgh:#222225;--bd:#28282c;--bdl:#323236;--t1:#e8e8ea;--t2:#8a8a94;--t3:#56565e;--ac:#d4a574;--ach:#e0b88a;--acg:rgba(212,165,116,0.15);--pu:#9b8ec4;--cy:#7cb8c4;--gn:#7ec49b;--sw:220px}
+:root{--bg0:#111113;--bg1:#161618;--bg2:#1c1c1f;--bgc:#19191c;--bgh:#222225;--bd:#28282c;--bdl:#323236;--t1:#e8e8ea;--t2:#8a8a94;--t3:#56565e;--ac:#d4a574;--ach:#e0b88a;--acg:rgba(212,165,116,0.15);--pu:#9b8ec4;--cy:#7cb8c4;--gn:#7ec49b;--sw:220px;--ui-zoom:1}
+@media(min-width:1600px){:root{--ui-zoom:1.15;--sw:250px}}
+@media(min-width:1920px){:root{--ui-zoom:1.25;--sw:270px}}
+@media(min-width:2560px){:root{--ui-zoom:1.45;--sw:300px}}
+@media(min-width:3200px){:root{--ui-zoom:1.7;--sw:340px}}
+@media(min-width:3840px){:root{--ui-zoom:2;--sw:380px}}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg0);color:var(--t1);-webkit-font-smoothing:antialiased}
+#root{zoom:var(--ui-zoom)}
+@supports not (zoom:1){#root{transform:scale(var(--ui-zoom));transform-origin:top left;width:calc(100% / var(--ui-zoom));height:calc(100vh / var(--ui-zoom))}}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -193,27 +226,28 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg0
 .stg>*:nth-child(1){animation-delay:.03s}.stg>*:nth-child(2){animation-delay:.06s}.stg>*:nth-child(3){animation-delay:.09s}.stg>*:nth-child(4){animation-delay:.12s}.stg>*:nth-child(5){animation-delay:.15s}.stg>*:nth-child(6){animation-delay:.18s}
 `;
 
-function ApiKeyModal({onClose,apiFetch}){
-  const af=apiFetch||fetch;
+function ApiKeyModal({onClose}){
   const[key,setKey]=useState('');
   const[maskedKey,setMaskedKey]=useState('');
   const[hasKey,setHasKey]=useState(false);
+  const[needKey,setNeedKey]=useState(false);
   const[saving,setSaving]=useState(false);
   const[msg,setMsg]=useState('');
 
   useEffect(()=>{
-    af('/api/apikey').then(r=>r.json()).then(d=>{
+    api.apiKey.get().then(r=>r.json()).then(d=>{
       setMaskedKey(d.apiKey||'');
       setHasKey(d.hasKey);
+      setNeedKey(d.needKey);
     }).catch(()=>{});
   },[]);
 
   const save=async()=>{
     setSaving(true);setMsg('');
     try{
-      const res=await af('/api/apikey',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:key})});
+      const res=await api.apiKey.set(key);
       const d=await res.json();
-      if(d.ok){setMsg('保存成功');setHasKey(!!key);setMaskedKey(key?key.slice(0,4)+'****'+key.slice(-4):'');setKey('');}
+      if(d.ok){setMsg('保存成功');setHasKey(!!key);setNeedKey(false);setMaskedKey(key?key.slice(0,4)+'****'+key.slice(-4):'');setKey('');}
       else setMsg(d.error||'保存失败');
     }catch(e){setMsg(e.message);}
     finally{setSaving(false);}
@@ -222,7 +256,7 @@ function ApiKeyModal({onClose,apiFetch}){
   const clear=async()=>{
     setSaving(true);setMsg('');
     try{
-      const res=await af('/api/apikey',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:''})});
+      const res=await api.apiKey.clear();
       const d=await res.json();
       if(d.ok){setMsg('已清除');setHasKey(false);setMaskedKey('');setKey('');}
       else setMsg(d.error||'清除失败');
@@ -231,12 +265,13 @@ function ApiKeyModal({onClose,apiFetch}){
   };
 
   return createPortal(
-    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.65)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeIn .15s ease-out"}}>
+    <div onClick={needKey&&!hasKey?undefined:onClose} style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.65)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeIn .15s ease-out"}}>
       <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg1)",border:"1px solid var(--bd)",borderRadius:14,padding:28,width:"100%",maxWidth:420,animation:"scaleIn .2s ease-out"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-          <h3 style={{fontSize:16,fontWeight:700,color:"var(--t1)",margin:0}}>自定义 API Key</h3>
-          <button onClick={onClose} style={{width:28,height:28,borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t3)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>{Icons.x}</button>
+          <h3 style={{fontSize:16,fontWeight:700,color:"var(--t1)",margin:0}}>{needKey&&!hasKey?'配置 API Key':'自定义 API Key'}</h3>
+          {!(needKey&&!hasKey)&&<button onClick={onClose} style={{width:28,height:28,borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t3)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>{Icons.x}</button>}
         </div>
+        {needKey&&!hasKey&&<div style={{padding:"10px 14px",borderRadius:8,background:"rgba(251,146,60,.08)",border:"1px solid rgba(251,146,60,.2)",color:"#fb923c",fontSize:12,lineHeight:1.6,marginBottom:16}}>使用前需要配置你的 API Key，请前往 <a href="https://kie.ai" target="_blank" rel="noreferrer" style={{color:"var(--ac)",fontWeight:600}}>kie.ai</a> 获取。</div>}
         <p style={{fontSize:12,color:"var(--t3)",lineHeight:1.6,marginBottom:16}}>
           输入你的 <a href="https://kie.ai" target="_blank" rel="noreferrer" style={{color:"var(--ac)"}}>kie.ai</a> API Key，将优先使用你的 Key 调用接口。留空则使用系统默认 Key。
         </p>
@@ -265,7 +300,7 @@ function ApiKeyModal({onClose,apiFetch}){
   );
 }
 
-function Sidebar({page,setPage,col,setCol,tab,setTab,currentUser,apiFetch}){
+function Sidebar({page,setPage,col,setCol,tab,setTab,currentUser}){
   const nav=[{id:PAGES.HOME,icon:Icons.home,label:"首页"},{id:PAGES.LIBRARY,icon:Icons.grid,label:"我的作品"},{id:PAGES.FAVORITES,icon:Icons.heart,label:"收藏"},...(currentUser?.role==='admin'?[{id:PAGES.ADMIN,icon:Icons.user,label:"管理面板"}]:[])
   ];
   const tools=[{icon:Icons.sparkle,label:"图像生成",tab:"generate"},{icon:Icons.video,label:"视频生成",tab:"video"},{icon:Icons.enhance,label:"图像增强",tab:"enhance"}];
@@ -307,7 +342,7 @@ function Sidebar({page,setPage,col,setCol,tab,setTab,currentUser,apiFetch}){
           <span style={{display:"flex",flexShrink:0,opacity:.7}}>{Icons.mail}</span>{!col&&"联系我们"}
         </button>
       </nav>
-      {showApiModal&&<ApiKeyModal onClose={()=>setShowApiModal(false)} apiFetch={apiFetch}/>}
+      {showApiModal&&<ApiKeyModal onClose={()=>setShowApiModal(false)}/>}
       {showContact&&(
         <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}} onClick={()=>setShowContact(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg2)",border:"1px solid var(--bd)",borderRadius:14,padding:"28px 32px",minWidth:320,maxWidth:400,boxShadow:"0 16px 48px rgba(0,0,0,.5)"}}>
@@ -359,23 +394,38 @@ function ModelCard({model,selected,onClick}){
 }
 
 // 全屏查看器
-function Lightbox({image,onClose,onEdit,apiFetch:apiFetchProp}){
-  const apiFetch=apiFetchProp||fetch;
+function Lightbox({image,onClose,onEdit,onUseAsRef,onUseAsVideoRef}){
   const[zoomed,setZoomed]=useState(false);
   const[pos,setPos]=useState({x:0,y:0});
+  const[promptExpanded,setPromptExpanded]=useState(false);
+  const[copied,setCopied]=useState(false);
+  const[imgMeta,setImgMeta]=useState(null);
   const dragging=useRef(false);
   const lastPt=useRef({x:0,y:0});
   const containerRef=useRef(null);
+
+  useEffect(()=>{
+    if(!image.imageUrl)return;
+    const img=new Image();
+    img.onload=()=>{
+      const url=image.imageUrl.toLowerCase();
+      let fmt='JPG';
+      if(url.includes('.png')||url.includes('format=png'))fmt='PNG';
+      else if(url.includes('.webp')||url.includes('format=webp'))fmt='WEBP';
+      setImgMeta({w:img.naturalWidth,h:img.naturalHeight,fmt});
+    };
+    img.src=image.imageUrl;
+  },[image.imageUrl]);
 
   const doDownload=async e=>{
     e.stopPropagation();
     if(!image.imageUrl)return;
     try{
-      const res=await apiFetch(`/api/download?url=${encodeURIComponent(image.imageUrl)}`);
+      const res=await api.download(image.imageUrl);
       const blob=await res.blob();
       const href=URL.createObjectURL(blob);
       const a=document.createElement('a');
-      a.href=href;a.download=`pictureme-${image.id||Date.now()}.jpg`;
+      a.href=href;a.download=`pictureme-${image.id||Date.now()}.${extFromBlob(blob)}`;
       document.body.appendChild(a);a.click();document.body.removeChild(a);
       URL.revokeObjectURL(href);
     }catch(err){console.error('下载失败',err);}
@@ -384,13 +434,7 @@ function Lightbox({image,onClose,onEdit,apiFetch:apiFetchProp}){
   const toggleZoom=e=>{
     e.stopPropagation();
     if(!zoomed){
-      // 以点击位置为中心放大
-      const rect=containerRef.current?.getBoundingClientRect();
-      if(rect){
-        const cx=e.clientX-rect.left-rect.width/2;
-        const cy=e.clientY-rect.top-rect.height/2;
-        setPos({x:-cx,y:-cy});
-      }
+      setPos({x:0,y:0});
       setZoomed(true);
     }else{
       setZoomed(false);setPos({x:0,y:0});
@@ -432,16 +476,21 @@ function Lightbox({image,onClose,onEdit,apiFetch:apiFetchProp}){
           </div>
           <div style={{display:"flex",alignItems:"center",gap:14,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",borderRadius:10,padding:"12px 16px"}}>
             <div style={{flex:1,minWidth:0}}>
-              <p style={{fontSize:13,fontWeight:500,lineHeight:1.6,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{image.prompt}</p>
-              <div style={{display:"flex",gap:12}}>
+              <p onClick={e=>{e.stopPropagation();if(!promptExpanded){setPromptExpanded(true);}else{navigator.clipboard.writeText(image.prompt).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);}).catch(()=>{});}}} style={{fontSize:13,fontWeight:500,lineHeight:1.6,marginBottom:4,cursor:"pointer",...(promptExpanded?{whiteSpace:"pre-wrap",wordBreak:"break-word"}:{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"})}} title={promptExpanded?"点击复制提示词":"点击展开完整提示词"}>{image.prompt}{promptExpanded&&<span style={{fontSize:11,color:copied?"#34d399":"var(--ac)",marginLeft:8,fontWeight:600}}>{copied?"已复制 ✓":"点击复制"}</span>}</p>
+              <div style={{display:"flex",gap:12,alignItems:"center"}}>
                 <span style={{fontSize:11,color:"var(--t3)"}}>{image.model}</span>
                 {image.ratio&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{image.ratio}</span>}
+                {imgMeta&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{imgMeta.w}×{imgMeta.h}</span>}
+                {imgMeta&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{imgMeta.fmt}</span>}
                 <span style={{fontSize:11,color:"var(--t3)"}}>{image.date}</span>
               </div>
             </div>
             <div style={{display:"flex",gap:6,flexShrink:0}}>
-              {onEdit&&<button onClick={e=>{e.stopPropagation();onClose();onEdit(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-                {Icons.edit}编辑
+              {onUseAsRef&&<button onClick={e=>{e.stopPropagation();onClose();onUseAsRef(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                {Icons.edit}图像生成
+              </button>}
+              {onUseAsVideoRef&&<button onClick={e=>{e.stopPropagation();onClose();onUseAsVideoRef(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                {Icons.video}生成视频
               </button>}
               <button onClick={doDownload} style={{padding:"8px 18px",borderRadius:6,border:"none",background:"var(--ac)",color:"var(--bg0)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
                 {Icons.download}下载原图
@@ -456,8 +505,7 @@ function Lightbox({image,onClose,onEdit,apiFetch:apiFetchProp}){
 }
 
 // 图片编辑 Modal
-function EditModal({image, onClose, onEditComplete, apiFetch:apiFetchProp}){
-  const apiFetch=apiFetchProp||fetch;
+function EditModal({image, onClose, onEditComplete}){
   const[editPrompt,setEditPrompt]=useState('');
   const[editing,setEditing]=useState(false);
   const[error,setError]=useState(null);
@@ -472,17 +520,13 @@ function EditModal({image, onClose, onEditComplete, apiFetch:apiFetchProp}){
     if(!editPrompt.trim()||editing)return;
     setEditing(true);setError(null);
     try{
-      const res=await apiFetch('/api/edit',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt:editPrompt,imageUrl:image.imageUrl,outputFormat:'png',imageSize:'1:1'}),
-      });
+      const res=await api.edit.create({prompt:editPrompt,imageUrl:image.imageUrl,outputFormat:'png',imageSize:'1:1'});
       const{taskId,error:err}=await res.json();
       if(!taskId)throw new Error(err||'创建任务失败');
       let retries=0;const MAX_RETRIES=60;
       const poll=async()=>{
         if(++retries>MAX_RETRIES){setError('编辑超时，请重试');setEditing(false);return;}
-        const s=await apiFetch(`/api/generate/status/${taskId}`);
+        const s=await api.edit.status(taskId);
         const d=await s.json();
         if(d.status==='success'){
           setResultUrl(d.images[0]||null);
@@ -498,11 +542,11 @@ function EditModal({image, onClose, onEditComplete, apiFetch:apiFetchProp}){
 
   const doDownload=async url=>{
     try{
-      const res=await apiFetch(`/api/download?url=${encodeURIComponent(url)}`);
+      const res=await api.download(url);
       const blob=await res.blob();
       const href=URL.createObjectURL(blob);
       const a=document.createElement('a');
-      a.href=href;a.download=`edited-${Date.now()}.jpg`;
+      a.href=href;a.download=`edited-${Date.now()}.${extFromBlob(blob)}`;
       document.body.appendChild(a);a.click();document.body.removeChild(a);
       URL.revokeObjectURL(href);
     }catch(e){console.error(e);}
@@ -569,8 +613,7 @@ function EditModal({image, onClose, onEditComplete, apiFetch:apiFetchProp}){
   );
 }
 
-function ImageCard({image,onFav,onDelete,onEdit,apiFetch:apiFetchProp}){
-  const apiFetch=apiFetchProp||fetch;
+function ImageCard({image,onFav,onDelete,onEdit,onUseAsRef,onUseAsVideoRef}){
   const[h,sH]=useState(false);
   const[viewing,setViewing]=useState(false);
   const ar={"16:9":"16/9","9:16":"9/14","4:3":"4/3","3:4":"3/4","2:3":"2/3","3:2":"3/2","4:5":"4/5","5:4":"5/4","5:6":"5/6","1:1":"1/1","21:9":"21/9"}[image.ratio]||"1/1";
@@ -579,11 +622,11 @@ function ImageCard({image,onFav,onDelete,onEdit,apiFetch:apiFetchProp}){
     e.stopPropagation();
     if(!image.imageUrl)return;
     try{
-      const res=await apiFetch(`/api/download?url=${encodeURIComponent(image.imageUrl)}`);
+      const res=await api.download(image.imageUrl);
       const blob=await res.blob();
       const href=URL.createObjectURL(blob);
       const a=document.createElement('a');
-      a.href=href;a.download=`pictureme-${image.id}.jpg`;
+      a.href=href;a.download=`pictureme-${image.id}.${extFromBlob(blob)}`;
       document.body.appendChild(a);a.click();document.body.removeChild(a);
       URL.revokeObjectURL(href);
     }catch(err){console.error('下载失败',err);}
@@ -619,13 +662,12 @@ function ImageCard({image,onFav,onDelete,onEdit,apiFetch:apiFetchProp}){
           </div>
         </div>
       </div>
-      {viewing&&image.imageUrl&&<Lightbox image={image} onClose={()=>setViewing(false)} onEdit={onEdit} apiFetch={apiFetch}/>}
+      {viewing&&image.imageUrl&&<Lightbox image={image} onClose={()=>setViewing(false)} onEdit={onEdit} onUseAsRef={onUseAsRef} onUseAsVideoRef={onUseAsVideoRef}/>}
     </>
   );
 }
 
-function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
-  const apiFetch=apiFetchProp||fetch;
+function EnhanceTab({addImages,refreshCredits}){
   const fileInputRef=useRef(null);
   const[file,setFile]=useState(null);
   const[previewUrl,setPreviewUrl]=useState(null);
@@ -647,16 +689,16 @@ function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
     setEnhancing(true);setError(null);setProgress(0);
     try{
       const formData=new FormData();formData.append('file',file);
-      const uploadRes=await apiFetch('/api/upload',{method:'POST',body:formData});
+      const uploadRes=await api.upload(formData);
       const{url,error:upErr}=await uploadRes.json();
       if(!url)throw new Error(upErr||'图片上传失败');
-      const enhRes=await apiFetch('/api/enhance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({imageUrl:url,upscaleFactor:factor})});
+      const enhRes=await api.enhance.create({imageUrl:url,upscaleFactor:factor});
       const{taskId,error:taskErr}=await enhRes.json();
       if(!taskId)throw new Error(taskErr||'创建任务失败');
       let retries=0;const MAX_RETRIES=60;
       const poll=async()=>{
         if(++retries>MAX_RETRIES){setError('增强超时，请重试');setEnhancing(false);return;}
-        const d=await(await apiFetch(`/api/enhance/status/${taskId}`)).json();
+        const d=await(await api.enhance.status(taskId)).json();
         if(d.status==='success'){
           const urls=d.images||[];
           setResults(urls);setEnhancing(false);
@@ -704,8 +746,7 @@ function EnhanceTab({apiFetch:apiFetchProp,addImages,refreshCredits}){
   );
 }
 
-function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTasks,setPendingVideoTasks}){
-  const apiFetch=apiFetchProp||fetch;
+function VideoTab({refreshCredits,addImages,pendingVideoTasks,setPendingVideoTasks,pendingRefImage,clearPendingRef}){
   const refInputRef=useRef(null);
   const[selModel,setSelModel]=useState(0);
   const[prompt,setPrompt]=useState('');
@@ -720,16 +761,24 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
   const[refPreview,setRefPreview]=useState(null);
   const[uploadingRef,setUploadingRef]=useState(false);
   const[openDropdown,setOpenDropdown]=useState(null);
+  const[dragging,setDragging]=useState(false);
+  const dragCounter=useRef(0);
 
   useEffect(()=>{
     const m=VIDEO_MODELS[selModel];
     setAspectRatio(m.options.aspectRatios[0]);
     setDuration(m.options.durations[0]);
-    setMode(m.modes.includes('text2video')?'text2video':m.modes[0]);
+    // 如果有参考图，保持 img2video；否则按模型默认模式
+    if(refImageUrl&&m.modes.includes('img2video')){
+      setMode('img2video');
+    }else{
+      setMode(m.modes.includes('text2video')?'text2video':m.modes[0]);
+    }
     setSound(false);setFixedLens(false);
     if(m.options.qualityModes)setQualityMode(m.options.qualityModes[0].v);
     if(m.options.resolutions)setResolution(m.options.resolutions[0].v);
-    setRefImageUrl(null);setRefPreview(null);setOpenDropdown(null);
+    if(!m.modes.includes('img2video')){setRefImageUrl(null);setRefPreview(null);}
+    setOpenDropdown(null);
   },[selModel]);
 
   useEffect(()=>{
@@ -738,13 +787,29 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
     return ()=>document.removeEventListener('click',handler);
   },[]);
 
+  // 消费从其他页面传入的参考图
+  useEffect(()=>{
+    if(!pendingRefImage||pendingRefImage.target!=='video')return;
+    const url=pendingRefImage.url;
+    // 如果当前模型不支持 img2video，切到第一个支持的
+    const curModel=VIDEO_MODELS[selModel];
+    if(!curModel.modes.includes('img2video')){
+      const idx=VIDEO_MODELS.findIndex(m=>m.modes.includes('img2video'));
+      if(idx>=0)setSelModel(idx);
+    }
+    setMode('img2video');
+    setRefPreview(url);
+    setRefImageUrl(url);
+    clearPendingRef();
+  },[pendingRefImage]);
+
   const handleRefFile=async f=>{
     if(!f||!f.type.startsWith('image/'))return;
     const reader=new FileReader();reader.onload=()=>setRefPreview(reader.result);reader.readAsDataURL(f);
     setUploadingRef(true);
     try{
       const fd=new FormData();fd.append('file',f);
-      const res=await apiFetch('/api/upload',{method:'POST',body:fd});
+      const res=await api.upload(fd);
       const{url,error:err}=await res.json();
       if(!url)throw new Error(err);
       setRefImageUrl(url);
@@ -753,6 +818,24 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
   };
 
   const clearRef=e=>{e?.stopPropagation();setRefImageUrl(null);setRefPreview(null);if(refInputRef.current)refInputRef.current.value='';};
+
+  // 拖拽到提示词框：自动上传 + 切换到图生视频模式
+  const handleDropFile=f=>{
+    if(!f||!f.type.startsWith('image/'))return;
+    // 如果当前模型不支持 img2video，自动切到第一个支持的模型
+    const curModel=VIDEO_MODELS[selModel];
+    if(!curModel.modes.includes('img2video')){
+      const idx=VIDEO_MODELS.findIndex(m=>m.modes.includes('img2video'));
+      if(idx>=0)setSelModel(idx);
+      else return; // 没有任何模型支持，忽略
+    }
+    setMode('img2video');
+    handleRefFile(f);
+  };
+  const handleVideoDragEnter=e=>{e.preventDefault();e.stopPropagation();dragCounter.current++;setDragging(true);};
+  const handleVideoDragLeave=e=>{e.preventDefault();e.stopPropagation();dragCounter.current--;if(dragCounter.current<=0){dragCounter.current=0;setDragging(false);}};
+  const handleVideoDragOver=e=>{e.preventDefault();e.stopPropagation();};
+  const handleVideoDrop=e=>{e.preventDefault();e.stopPropagation();dragCounter.current=0;setDragging(false);const files=e.dataTransfer?.files;if(files?.[0])handleDropFile(files[0]);};
 
   const doGenerate=async()=>{
     if(!prompt.trim())return;
@@ -774,16 +857,13 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
       if(vm.options.resolutions)body.resolution=resolution;
       if(vm.options.hasFixedLens)body.fixedLens=fixedLens;
       if(mode==='img2video'&&refImageUrl)body.refImageUrl=refImageUrl;
-      const res=await apiFetch('/api/video/generate',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(body),
-      });
+      const res=await api.video.create(body);
       const{taskId,error:err}=await res.json();
       if(!taskId)throw new Error(err||'创建任务失败');
       let retries=0;const MAX_RETRIES=120;
       const poll=async()=>{
         if(++retries>MAX_RETRIES){setPendingVideoTasks(prev=>prev.map(t=>t.id===taskUid?{...t,status:'failed',error:'生成超时'}:t));return;}
-        const d=await(await apiFetch(`/api/video/status/${taskId}`)).json();
+        const d=await(await api.video.status(taskId)).json();
         if(d.status==='success'){
           setPendingVideoTasks(prev=>prev.filter(t=>t.id!==taskUid));
           if(addImages){
@@ -819,7 +899,13 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
       <input ref={refInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>handleRefFile(e.target.files[0])}/>
 
       {/* 提示词输入框 + 参数栏（与图像生成一致） */}
-      <div style={{background:"var(--bgc)",borderRadius:12,border:"1px solid var(--bd)",marginBottom:14,position:"relative",zIndex:50}}>
+      <div onDragEnter={handleVideoDragEnter} onDragLeave={handleVideoDragLeave} onDragOver={handleVideoDragOver} onDrop={handleVideoDrop} style={{background:"var(--bgc)",borderRadius:12,border:dragging?"1.5px dashed var(--ac)":"1px solid var(--bd)",marginBottom:14,position:"relative",zIndex:50,transition:"border .15s"}}>
+        {/* 拖拽提示遮罩 */}
+        {dragging&&(
+          <div style={{position:"absolute",inset:0,borderRadius:12,background:"rgba(212,165,116,.08)",zIndex:20,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+            <span style={{fontSize:15,fontWeight:600,color:"var(--ac)"}}>松开以添加参考图，自动切换为图生视频</span>
+          </div>
+        )}
         {/* 参考图预览（img2video 模式，输入框内顶部，与图像生成一致） */}
         {mode==='img2video'&&refPreview&&(
           <div style={{padding:"12px 16px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid var(--bd)",background:"rgba(212,165,116,.04)",flexWrap:"wrap"}}>
@@ -855,7 +941,6 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {/* 模型选择 pill */}
           <div style={{position:"relative"}} data-pill>
             <button onClick={()=>setOpenDropdown(openDropdown==='model'?null:'model')} style={pillStyle(openDropdown==='model')}>
-              {Icons.video}
               {VIDEO_MODELS[selModel].name}
               {chevron}
             </button>
@@ -907,13 +992,13 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
             <div data-pill style={{position:"relative",display:"flex",alignItems:"center"}}>
               {refPreview?(
                 <button onClick={()=>refInputRef.current?.click()} style={pillStyle(false)}>
-                  {Icons.uploadSm}
+                  {Icons.pillRef}
                   {uploadingRef?"上传中...":"参考图 1"}
                   <button onClick={clearRef} style={{display:"flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(255,255,255,.12)",color:"var(--t3)",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,fontWeight:700,marginLeft:2}}>×</button>
                 </button>
               ):(
                 <button onClick={()=>refInputRef.current?.click()} style={pillStyle(false)}>
-                  {Icons.uploadSm}
+                  {Icons.pillRef}
                   参考图
                 </button>
               )}
@@ -923,7 +1008,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {/* 比例 pill */}
           <div style={{position:"relative"}} data-pill>
             <button onClick={()=>setOpenDropdown(openDropdown==='ratio'?null:'ratio')} style={pillStyle(openDropdown==='ratio')}>
-              <span style={{fontSize:12,opacity:.7}}>□</span>
+              {Icons.pillRatio}
               {aspectRatio}
               {chevron}
             </button>
@@ -942,7 +1027,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {/* 时长 pill */}
           <div style={{position:"relative"}} data-pill>
             <button onClick={()=>setOpenDropdown(openDropdown==='duration'?null:'duration')} style={pillStyle(openDropdown==='duration')}>
-              <span style={{fontSize:11,opacity:.7}}>⏱</span>
+              {Icons.pillDuration}
               {duration}s
               {vm.options.durations.length>1&&chevron}
             </button>
@@ -962,7 +1047,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {vm.options.hasSound&&(
             <div data-pill>
               <button onClick={()=>setSound(!sound)} style={pillStyle(sound)}>
-                <span style={{fontSize:12,opacity:.7}}>{sound?'🔊':'🔇'}</span>
+                {sound?Icons.pillSound:Icons.pillMute}
                 {sound?'有声':'静音'}
               </button>
             </div>
@@ -972,7 +1057,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {vm.options.hasFixedLens&&(
             <div data-pill>
               <button onClick={()=>setFixedLens(!fixedLens)} style={pillStyle(fixedLens)}>
-                <span style={{fontSize:12,opacity:.7}}>{fixedLens?'📌':'🎥'}</span>
+                {fixedLens?Icons.pillLensLock:Icons.pillLens}
                 {fixedLens?'固定镜头':'动态镜头'}
               </button>
             </div>
@@ -982,7 +1067,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {vm.options.qualityModes&&(
             <div style={{position:"relative"}} data-pill>
               <button onClick={()=>setOpenDropdown(openDropdown==='quality'?null:'quality')} style={pillStyle(openDropdown==='quality')}>
-                <span style={{fontSize:11,opacity:.7}}>✦</span>
+                {Icons.pillStar}
                 {vm.options.qualityModes.find(q=>q.v===qualityMode)?.l||qualityMode}
                 {chevron}
               </button>
@@ -1003,7 +1088,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
           {vm.options.resolutions&&(
             <div style={{position:"relative"}} data-pill>
               <button onClick={()=>setOpenDropdown(openDropdown==='resolution'?null:'resolution')} style={pillStyle(openDropdown==='resolution')}>
-                <span style={{fontSize:11,opacity:.7}}>▣</span>
+                {Icons.pillRes}
                 {resolution}
                 {chevron}
               </button>
@@ -1022,6 +1107,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
 
           {/* 生成按钮 */}
           <button onClick={doGenerate} style={{marginLeft:"auto",padding:"0 18px",height:32,borderRadius:6,border:"none",cursor:"pointer",background:"var(--ac)",color:"var(--bg0)",fontFamily:"inherit",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:6,transition:"all .2s",flexShrink:0}}>
+            {Icons.pillSend}
             生成视频
           </button>
         </div>
@@ -1031,7 +1117,7 @@ function VideoTab({apiFetch:apiFetchProp,refreshCredits,addImages,pendingVideoTa
   );
 }
 
-function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteImage,apiFetch,currentUser,refreshCredits}){
+function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteImage,currentUser,refreshCredits,pendingRefImage,clearPendingRef,useImageAsRef,useImageAsVideoRef}){
   const refInputRef=useRef(null);
 
   const[prompt,setPrompt]=useState("");
@@ -1071,6 +1157,19 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
     return ()=>document.removeEventListener('click',handler);
   },[]);
 
+  // 消费从其他页面传入的参考图
+  useEffect(()=>{
+    if(!pendingRefImage||pendingRefImage.target!=='generate')return;
+    const url=pendingRefImage.url;
+    // 如果当前模型不支持参考图，切到第一个支持的
+    if(!MODELS[selModel].supportsRefImage){
+      const idx=MODELS.findIndex(m=>m.supportsRefImage);
+      if(idx>=0)setSelModel(idx);
+    }
+    setRefImages(prev=>[...prev,{id:crypto.randomUUID(),preview:url,url,uploading:false}]);
+    clearPendingRef();
+  },[pendingRefImage]);
+
   const readAsDataUrl=f=>new Promise(resolve=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(f);});
 
   const handleRefFiles=async files=>{
@@ -1084,7 +1183,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
     const fd=new FormData();
     validFiles.forEach(f=>fd.append('file',f));
     try{
-      const res=await apiFetch('/api/upload',{method:'POST',body:fd});
+      const res=await api.upload(fd);
       const data=await res.json();
       if(data.error)throw new Error(data.error);
       const urls=data.urls||[data.url];
@@ -1123,10 +1222,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
     const pendingTask={id:taskUid,prompt:snapPrompt,model:snapModel,ratio:snapRatio,color:snapColor,status:'generating',error:null};
     setPendingTasks(prev=>[pendingTask,...prev]);
     try{
-      const res=await apiFetch('/api/generate',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
+      const res=await api.generate.create({
           prompt:snapPrompt,
           model:MODELS[selModel].modelId,
           aspectRatio:aspectRatio.toLowerCase(),
@@ -1135,14 +1231,13 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
           ...(outputFormat&&{outputFormat:outputFormat.toLowerCase()}),
           ...(refImages.length>0&&{refImageUrls:refImages.filter(r=>r.url).map(r=>r.url)}),
           ...(speed&&{speed}),
-        }),
       });
       const{taskId,error:err}=await res.json();
       if(!taskId)throw new Error(err||'创建任务失败');
       let retries=0;const MAX_RETRIES=60;
       const poll=async()=>{
         if(++retries>MAX_RETRIES){setPendingTasks(prev=>prev.map(t=>t.id===taskUid?{...t,status:'failed',error:'生成超时'}:t));return;}
-        const d=await(await apiFetch(`/api/generate/status/${taskId}`)).json();
+        const d=await(await api.generate.status(taskId)).json();
         if(d.status==='success'){
           removePendingTask(taskUid);
           const newImgs=d.images.map((url,i)=>({
@@ -1175,8 +1270,8 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
   return(
     <div style={{maxWidth:1100,margin:"0 auto"}}>
       {/* Logo 标题 */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",paddingTop:20,marginBottom:40}}>
-        <span style={{fontFamily:"'Outfit',sans-serif",fontSize:36,fontWeight:800,letterSpacing:"-.03em",color:"var(--t1)"}}>PictureMe</span>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",paddingTop:28,marginBottom:44}}>
+        <span style={{fontFamily:"'Outfit',sans-serif",fontSize:44,fontWeight:800,letterSpacing:"-.03em",color:"var(--t1)"}}>PictureMe</span>
       </div>
 
       {/* generate / video / enhance 输入区：用 display 隐藏保留状态 */}
@@ -1261,13 +1356,13 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                       <div data-pill style={{position:"relative",display:"flex",alignItems:"center"}}>
                         {refImages.length>0?(
                           <button onClick={()=>refInputRef.current?.click()} style={pillStyle(false)}>
-                            {Icons.uploadSm}
+                            {Icons.pillRef}
                             {refImages.some(r=>r.uploading)?"上传中...":`参考图 ${refImages.length}`}
                             <button onClick={clearAllRefs} style={{display:"flex",alignItems:"center",justifyContent:"center",width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(255,255,255,.12)",color:"var(--t3)",cursor:"pointer",padding:0,fontSize:10,lineHeight:1,fontWeight:700,marginLeft:2}}>×</button>
                           </button>
                         ):(
                           <button onClick={()=>refInputRef.current?.click()} style={pillStyle(false)}>
-                            {Icons.uploadSm}
+                            {Icons.pillRef}
                             参考图
                           </button>
                         )}
@@ -1277,7 +1372,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                     {/* Ratio pill */}
                     <div style={{position:"relative"}} data-pill>
                       <button onClick={()=>setOpenDropdown(openDropdown==='ratio'?null:'ratio')} style={pillStyle(openDropdown==='ratio')}>
-                        <span style={{fontSize:12,opacity:.7}}>□</span>
+                        {Icons.pillRatio}
                         {aspectRatio}
                         {chevron}
                       </button>
@@ -1297,7 +1392,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                     {opts.resolutions&&(
                       <div style={{position:"relative"}} data-pill>
                         <button onClick={()=>setOpenDropdown(openDropdown==='resolution'?null:'resolution')} style={pillStyle(openDropdown==='resolution')}>
-                          <span style={{fontSize:11,opacity:.7}}>◈</span>
+                          {Icons.pillRes}
                           {resolution}
                           {chevron}
                         </button>
@@ -1318,7 +1413,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                     {opts.qualities&&(
                       <div style={{position:"relative"}} data-pill>
                         <button onClick={()=>setOpenDropdown(openDropdown==='quality'?null:'quality')} style={pillStyle(openDropdown==='quality')}>
-                          <span style={{fontSize:11,opacity:.7}}>◇</span>
+                          {Icons.pillQuality}
                           {opts.qualities.find(q=>q.value===quality)?.label||quality}
                           {chevron}
                         </button>
@@ -1339,7 +1434,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                     {opts.speeds&&(
                       <div style={{position:"relative"}} data-pill>
                         <button onClick={()=>setOpenDropdown(openDropdown==='speed'?null:'speed')} style={pillStyle(openDropdown==='speed')}>
-                          <span style={{fontSize:11,opacity:.7}}>⚡</span>
+                          {Icons.pillSpeed}
                           {opts.speeds.find(s=>s.value===speed)?.label||speed}
                           {chevron}
                         </button>
@@ -1360,7 +1455,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                     {opts.outputFormats&&(
                       <div style={{position:"relative"}} data-pill>
                         <button onClick={()=>setOpenDropdown(openDropdown==='format'?null:'format')} style={pillStyle(openDropdown==='format')}>
-                          <span style={{fontSize:11,opacity:.7}}>📄</span>
+                          {Icons.pillFormat}
                           {outputFormat}
                           {chevron}
                         </button>
@@ -1379,6 +1474,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
 
                     {/* Generate button */}
                     <button onClick={doGen} style={{marginLeft:"auto",padding:"0 18px",height:32,borderRadius:6,border:"none",cursor:"pointer",background:"var(--ac)",color:"var(--bg0)",fontFamily:"inherit",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:6,transition:"all .2s",flexShrink:0}}>
+                      {Icons.pillSend}
                       生成
                     </button>
                   </>
@@ -1388,10 +1484,10 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
           </div>
       </div>
       <div style={{display:tab==="video"?'block':'none'}}>
-        <VideoTab apiFetch={apiFetch} refreshCredits={refreshCredits} addImages={addImages} pendingVideoTasks={pendingVideoTasks} setPendingVideoTasks={setPendingVideoTasks}/>
+        <VideoTab refreshCredits={refreshCredits} addImages={addImages} pendingVideoTasks={pendingVideoTasks} setPendingVideoTasks={setPendingVideoTasks} pendingRefImage={pendingRefImage} clearPendingRef={clearPendingRef}/>
       </div>
       <div style={{display:tab==="enhance"?'block':'none'}}>
-        <EnhanceTab apiFetch={apiFetch} addImages={addImages} refreshCredits={refreshCredits}/>
+        <EnhanceTab addImages={addImages} refreshCredits={refreshCredits}/>
       </div>
 
       {/* 最近生成 — 按 tab 过滤 */}
@@ -1481,7 +1577,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
                   (filtered.length===0&&(tab!=='generate'||pendingTasks.length===0)?
                     (tab==='generate'?SAMPLE_IMAGES.slice(0,4):[]
                   ):filtered.slice(0,12)).map(img=>(
-                    <ImageCard key={img.id} image={img} onFav={toggleFav} onDelete={deleteImage} onEdit={img.imageUrl?setEditImage:undefined} apiFetch={apiFetch}/>
+                    <ImageCard key={img.id} image={img} onFav={toggleFav} onDelete={deleteImage} onEdit={img.imageUrl?setEditImage:undefined} onUseAsRef={useImageAsRef} onUseAsVideoRef={useImageAsVideoRef}/>
                   ))
                 )}
               </div>
@@ -1495,14 +1591,13 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
           image={editImage}
           onClose={()=>setEditImage(null)}
           onEditComplete={handleEditComplete}
-          apiFetch={apiFetch}
         />
       )}
     </div>
   );
 }
 
-function LibraryPage({favorites=false,images=[],toggleFav,deleteImage,apiFetch}){
+function LibraryPage({favorites=false,images=[],toggleFav,deleteImage,useImageAsRef,useImageAsVideoRef}){
   const[filter,setFilter]=useState("全部");
   const now=new Date();
   const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-7);
@@ -1547,7 +1642,7 @@ function LibraryPage({favorites=false,images=[],toggleFav,deleteImage,apiFetch})
               </div>
             </div>
           ):(
-            <ImageCard key={img.id} image={img} onFav={toggleFav} onDelete={deleteImage} apiFetch={apiFetch}/>
+            <ImageCard key={img.id} image={img} onFav={toggleFav} onDelete={deleteImage} onUseAsRef={useImageAsRef} onUseAsVideoRef={useImageAsVideoRef}/>
           ))}
         </div>
       )}
@@ -1580,7 +1675,7 @@ function LoginPage({onLogin}){
     if(!username.trim()||!password.trim())return;
     setLoading(true);setError(null);
     try{
-      const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+      const res=await api.auth.login(username,password);
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'登录失败');
       onLogin(data.token,data.user);
@@ -1612,7 +1707,7 @@ function LoginPage({onLogin}){
 }
 
 // ─── 管理员面板 ──────────────────────────────────────────
-function AdminPage({apiFetch}){
+function AdminPage(){
   const[users,setUsers]=useState([]);
   const[loading,setLoading]=useState(true);
   const[newUser,setNewUser]=useState({username:'',password:'',role:'user',credits:100});
@@ -1623,7 +1718,7 @@ function AdminPage({apiFetch}){
 
   const loadUsers=async()=>{
     try{
-      const res=await apiFetch('/api/admin/users');
+      const res=await api.admin.listUsers();
       const data=await res.json();
       setUsers(data.users||[]);
     }catch{}
@@ -1634,7 +1729,7 @@ function AdminPage({apiFetch}){
   const createUser=async e=>{
     e.preventDefault();setMsg(null);
     try{
-      const res=await apiFetch('/api/admin/create-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newUser)});
+      const res=await api.admin.createUser(newUser);
       const data=await res.json();
       if(!res.ok)throw new Error(data.error);
       setMsg({type:'ok',text:`用户 ${data.user.username} 创建成功`});
@@ -1646,7 +1741,7 @@ function AdminPage({apiFetch}){
   const doRecharge=async e=>{
     e.preventDefault();setMsg(null);
     try{
-      const res=await apiFetch('/api/admin/recharge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:Number(recharge.userId),amount:Number(recharge.amount)})});
+      const res=await api.admin.recharge(recharge.userId, recharge.amount);
       const data=await res.json();
       if(!res.ok)throw new Error(data.error);
       setMsg({type:'ok',text:`已为 ${data.user.username} 充值，当前积分 ${data.user.credits}`});
@@ -1657,7 +1752,7 @@ function AdminPage({apiFetch}){
   const deleteUser=async id=>{
     if(!confirm('确定删除此用户？'))return;
     try{
-      const res=await apiFetch(`/api/admin/users/${id}`,{method:'DELETE'});
+      const res=await api.admin.deleteUser(id);
       if(!res.ok){const d=await res.json();throw new Error(d.error);}
       loadUsers();
     }catch(e){setMsg({type:'err',text:e.message});}
@@ -1671,7 +1766,7 @@ function AdminPage({apiFetch}){
     if(editUser.password)body.password=editUser.password;
     if(!body.username&&!body.password){setMsg({type:'err',text:'请填写要修改的用户名或密码'});return;}
     try{
-      const res=await apiFetch('/api/admin/update-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const res=await api.admin.updateUser(body);
       const data=await res.json();
       if(!res.ok)throw new Error(data.error);
       setMsg({type:'ok',text:`用户 ${data.user.username} 信息已更新`});
@@ -1768,9 +1863,11 @@ function AdminPage({apiFetch}){
 }
 
 export default function App(){
-  const[page,setPage]=useState(PAGES.HOME);
+  const[page,_setPage]=useState(()=>sessionStorage.getItem('pm_page')||PAGES.HOME);
+  const setPage=v=>{sessionStorage.setItem('pm_page',v);_setPage(v);};
   const[col,setCol]=useState(false);
-  const[tab,setTab]=useState("generate");
+  const[tab,_setTab]=useState(()=>sessionStorage.getItem('pm_tab')||"generate");
+  const setTab=v=>{sessionStorage.setItem('pm_tab',v);_setTab(v);};
 
   // ── Auth 状态 ──
   const[token,setToken]=useState(()=>localStorage.getItem('token'));
@@ -1781,15 +1878,11 @@ export default function App(){
     setToken(null);setCurrentUser(null);localStorage.removeItem('token');
   };
 
-  // apiFetch: 自动带 Authorization header，401 自动登出
-  const apiFetch=(url,opts={})=>{
-    const headers={...opts.headers};
-    if(token)headers['Authorization']=`Bearer ${token}`;
-    return fetch(url,{...opts,headers}).then(res=>{
-      if(res.status===401){logout();}
-      return res;
-    });
-  };
+  // 同步 token 到 api 模块
+  useEffect(()=>{
+    api.setToken(token);
+    api.setOnUnauthorized(logout);
+  },[token]);
 
   const handleLogin=(newToken,user)=>{
     localStorage.setItem('token',newToken);
@@ -1800,17 +1893,26 @@ export default function App(){
   // 启动时用 token 获取用户信息
   useEffect(()=>{
     if(!token){setAuthLoading(false);return;}
-    fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}})
+    api.auth.me()
       .then(r=>{if(!r.ok)throw new Error();return r.json();})
       .then(data=>setCurrentUser(data.user))
       .catch(()=>{logout();})
       .finally(()=>setAuthLoading(false));
   },[token]);
 
+  // 登录后检查是否需要配置 API Key
+  const[showKeyPrompt,setShowKeyPrompt]=useState(false);
+  useEffect(()=>{
+    if(!token)return;
+    api.apiKey.get().then(r=>r.json()).then(d=>{
+      if(d.needKey)setShowKeyPrompt(true);
+    }).catch(()=>{});
+  },[token]);
+
   // 刷新积分
   const refreshCredits=()=>{
     if(!token)return;
-    fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}})
+    api.auth.me()
       .then(r=>r.ok?r.json():null)
       .then(data=>{if(data?.user)setCurrentUser(prev=>({...prev,credits:data.user.credits}));})
       .catch(()=>{});
@@ -1822,7 +1924,7 @@ export default function App(){
 
   useEffect(()=>{
     if(!token)return;
-    apiFetch('/api/images')
+    api.images.list()
       .then(r=>r.json())
       .then(data=>{setImages(Array.isArray(data)?data:[]);})
       .catch(()=>{})
@@ -1831,11 +1933,7 @@ export default function App(){
 
   const addImages=newImgs=>{
     setImages(prev=>[...newImgs,...prev]);
-    apiFetch('/api/images',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({records:newImgs}),
-    }).catch(()=>{});
+    api.images.save(newImgs).catch(()=>{});
     // 刷新积分
     setTimeout(refreshCredits,500);
   };
@@ -1844,18 +1942,25 @@ export default function App(){
     setImages(prev=>prev.map(i=>{
       if(i.id!==id)return i;
       const next={...i,fav:!i.fav};
-      apiFetch(`/api/images/${id}`,{
-        method:'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({fav:next.fav}),
-      }).catch(()=>{});
+      api.images.update(id, {fav:next.fav}).catch(()=>{});
       return next;
     }));
   };
 
   const deleteImage=id=>{
     setImages(prev=>prev.filter(i=>i.id!==id));
-    apiFetch(`/api/images/${id}`,{method:'DELETE'}).catch(()=>{});
+    api.images.remove(id).catch(()=>{});
+  };
+
+  // ── 跨页面参考图注入 ──
+  const[pendingRefImage,setPendingRefImage]=useState(null); // {url, target:'generate'|'video'}
+  const useImageAsRef=(image)=>{
+    setPendingRefImage({url:image.imageUrl,target:'generate'});
+    setPage(PAGES.HOME);setTab('generate');
+  };
+  const useImageAsVideoRef=(image)=>{
+    setPendingRefImage({url:image.imageUrl,target:'video'});
+    setPage(PAGES.HOME);setTab('video');
   };
 
   // 显示加载或登录页
@@ -1865,7 +1970,7 @@ export default function App(){
   return(
     <div style={{display:"flex",minHeight:"100vh",background:"var(--bg0)"}}>
       <style>{CSS}</style>
-      <Sidebar page={page} setPage={setPage} col={col} setCol={setCol} tab={tab} setTab={setTab} currentUser={currentUser} apiFetch={apiFetch}/>
+      <Sidebar page={page} setPage={setPage} col={col} setCol={setCol} tab={tab} setTab={setTab} currentUser={currentUser}/>
       <main style={{flex:1,marginLeft:col?56:"var(--sw)",transition:"margin-left .25s ease",minHeight:"100vh"}}>
         <header style={{position:"sticky",top:0,zIndex:50,background:"rgba(17,17,19,.9)",backdropFilter:"blur(12px)",borderBottom:"1px solid var(--bd)",padding:"0 28px",height:52,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <span style={{fontSize:13,color:"var(--t3)",fontWeight:500}}>{page===PAGES.HOME&&"首页"}{page===PAGES.LIBRARY&&"我的作品"}{page===PAGES.FAVORITES&&"收藏"}{page===PAGES.ADMIN&&"管理面板"}</span>
@@ -1883,12 +1988,13 @@ export default function App(){
         </header>
         <div style={{padding:"24px 28px 48px"}}>
           {/* HomePage 始终挂载，切换页面时隐藏而非卸载，保留 pendingTasks/refImages 等状态 */}
-          <div style={{display:page===PAGES.HOME?'block':'none'}}><HomePage tab={tab} setTab={setTab} images={images} addImages={addImages} loadingImages={loadingImages} toggleFav={toggleFav} deleteImage={deleteImage} apiFetch={apiFetch} currentUser={currentUser} refreshCredits={refreshCredits}/></div>
-          {page===PAGES.LIBRARY&&<LibraryPage images={images} toggleFav={toggleFav} deleteImage={deleteImage} apiFetch={apiFetch}/>}
-          {page===PAGES.FAVORITES&&<LibraryPage favorites images={images} toggleFav={toggleFav} deleteImage={deleteImage} apiFetch={apiFetch}/>}
-          {page===PAGES.ADMIN&&currentUser?.role==='admin'&&<AdminPage apiFetch={apiFetch}/>}
+          <div style={{display:page===PAGES.HOME?'block':'none'}}><HomePage tab={tab} setTab={setTab} images={images} addImages={addImages} loadingImages={loadingImages} toggleFav={toggleFav} deleteImage={deleteImage} currentUser={currentUser} refreshCredits={refreshCredits} pendingRefImage={pendingRefImage} clearPendingRef={()=>setPendingRefImage(null)} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/></div>
+          {page===PAGES.LIBRARY&&<LibraryPage images={images} toggleFav={toggleFav} deleteImage={deleteImage} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/>}
+          {page===PAGES.FAVORITES&&<LibraryPage favorites images={images} toggleFav={toggleFav} deleteImage={deleteImage} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/>}
+          {page===PAGES.ADMIN&&currentUser?.role==='admin'&&<AdminPage/>}
         </div>
       </main>
+      {showKeyPrompt&&<ApiKeyModal onClose={()=>setShowKeyPrompt(false)}/>}
     </div>
   );
 }

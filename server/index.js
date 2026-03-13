@@ -6,12 +6,12 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
-// 加载 .env：优先项目根目录，打包后也尝试 userData 目录
+// 加载 .env：userData 目录优先（覆盖项目默认），再加载项目根目录兜底
 const __server_dir = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__server_dir, '..', '.env') });
 if (process.env.PICTUREME_DATA_DIR) {
-  dotenv.config({ path: path.join(process.env.PICTUREME_DATA_DIR, '.env') });
+  dotenv.config({ path: path.join(process.env.PICTUREME_DATA_DIR, '.env'), override: true });
 }
+dotenv.config({ path: path.join(__server_dir, '..', '.env') });
 import db from './db.js';
 import authRouter, { authMiddleware } from './auth.js';
 import adminRouter from './admin.js';
@@ -47,7 +47,8 @@ app.get('/api/apikey', authMiddleware, (req, res) => {
   const key = getUserApiKey(req.user.id);
   // 只返回脱敏后的 key（前4后4）
   const masked = key ? key.slice(0, 4) + '****' + key.slice(-4) : '';
-  res.json({ apiKey: masked, hasKey: !!key });
+  const hasSystemKey = !!process.env.KIE_API_KEY;
+  res.json({ apiKey: masked, hasKey: !!key, hasSystemKey, needKey: !key && !hasSystemKey });
 });
 
 app.put('/api/apikey', authMiddleware, (req, res) => {
