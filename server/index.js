@@ -19,7 +19,7 @@ import { creditsCheck, deductCredits } from './credits.js';
 
 const app = express();
 app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:3001', 'http://127.0.0.1:5173'] }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 打包后用 PICTUREME_DATA_DIR，否则用项目目录
@@ -577,6 +577,50 @@ app.get('/api/download', async (req, res) => {
     res.send(Buffer.from(await response.arrayBuffer()));
   } catch (err) {
     res.status(502).json({ error: err.message });
+  }
+});
+
+// ─── Chat (LLM 对话) ──────────────────────────────────────
+app.post('/api/chat', authMiddleware, async (req, res) => {
+  const { model, messages, stream, path: modelPath } = req.body;
+  if (!messages?.length) return res.status(400).json({ error: 'messages 不能为空' });
+  const headers = reqAuthHeaders(req);
+  let headersSent = false;
+  const basePath = modelPath && modelPath !== 'api' ? modelPath : 'api';
+  try {
+    const kieRes = await fetch(`${KIE_BASE}/${basePath}/v1/chat/completions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model: model || 'deepseek-chat', messages, stream: !!stream }),
+    });
+    if (!kieRes.ok) {
+      const err = await kieRes.text();
+      return res.status(kieRes.status).json({ error: err });
+    }
+    if (stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      headersSent = true;
+      const reader = kieRes.body.getReader();
+      const decoder = new TextDecoder();
+      req.on('close', () => { try { reader.cancel(); } catch {} });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(decoder.decode(value, { stream: true }));
+      }
+      res.end();
+    } else {
+      const data = await kieRes.json();
+      res.json(data);
+    }
+  } catch (err) {
+    if (headersSent) {
+      try { res.end(); } catch {}
+    } else {
+      res.status(502).json({ error: err.message });
+    }
   }
 });
 

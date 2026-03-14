@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import * as api from "./api.js";
 
-const PAGES = { HOME: "home", LIBRARY: "library", FAVORITES: "favorites", ADMIN: "admin" };
+const PAGES = { HOME: "home", LIBRARY: "library", FAVORITES: "favorites", AI_PROMPT: "ai_prompt", PROMPT_LIB: "prompt_lib", ADMIN: "admin" };
 
 const extFromBlob = (blob) => {
   const t = blob.type || '';
@@ -46,12 +46,12 @@ const Icons = {
   edit: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   // pill bar icons (14x14, stroke style)
   pillModel: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>,
-  pillRatio: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="14" height="12" rx="2"/><rect x="9" y="9" width="12" height="10" rx="2"/></svg>,
+  pillRatio: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="10" y1="3" x2="10" y2="21"/></svg>,
   pillRes: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 8V4h4"/><path d="M16 4h4v4"/><path d="M20 16v4h-4"/><path d="M8 20H4v-4"/></svg>,
   pillQuality: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
   pillSpeed: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
   pillFormat: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
-  pillRef: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
+  pillRef: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 16l-4-4-4 4"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>,
   pillDuration: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   pillSound: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
   pillMute: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>,
@@ -64,6 +64,11 @@ const Icons = {
   mail: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
   eye: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   eyeOff: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  wand: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h0"/><path d="M17.8 6.2L19 5"/><path d="M11 6.2L9.7 5"/><path d="M11 11.8L9.7 13"/><line x1="3" y1="21" x2="15" y2="9"/></svg>,
+  chat: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  book: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+  copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
+  plus: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
 };
 
 const MODELS = [
@@ -221,9 +226,11 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg0
 @keyframes scaleIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes glow{0%,100%{box-shadow:0 0 12px var(--acg)}50%{box-shadow:0 0 24px var(--acg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 @keyframes meshMove{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-30px,20px) scale(1.05)}}
 .stg>*{animation:fadeUp .4s ease-out both}
 .stg>*:nth-child(1){animation-delay:.03s}.stg>*:nth-child(2){animation-delay:.06s}.stg>*:nth-child(3){animation-delay:.09s}.stg>*:nth-child(4){animation-delay:.12s}.stg>*:nth-child(5){animation-delay:.15s}.stg>*:nth-child(6){animation-delay:.18s}
+.convo-item:hover .convo-del{opacity:1!important}
 `;
 
 function ApiKeyModal({onClose}){
@@ -303,7 +310,7 @@ function ApiKeyModal({onClose}){
 function Sidebar({page,setPage,col,setCol,tab,setTab,currentUser}){
   const nav=[{id:PAGES.HOME,icon:Icons.home,label:"首页"},{id:PAGES.LIBRARY,icon:Icons.grid,label:"我的作品"},{id:PAGES.FAVORITES,icon:Icons.heart,label:"收藏"},...(currentUser?.role==='admin'?[{id:PAGES.ADMIN,icon:Icons.user,label:"管理面板"}]:[])
   ];
-  const tools=[{icon:Icons.sparkle,label:"图像生成",tab:"generate"},{icon:Icons.video,label:"视频生成",tab:"video"},{icon:Icons.enhance,label:"图像增强",tab:"enhance"}];
+  const tools=[{icon:Icons.sparkle,label:"图像生成",tab:"generate"},{icon:Icons.video,label:"视频生成",tab:"video"},{icon:Icons.enhance,label:"图像增强",tab:"enhance"},{icon:Icons.chat,label:"AI 对话",page:PAGES.AI_PROMPT},{icon:Icons.book,label:"提示词模板",page:PAGES.PROMPT_LIB}];
   const[toolActive,setToolActive]=useState(false);
   const[showApiModal,setShowApiModal]=useState(false);
   const[showContact,setShowContact]=useState(false);
@@ -329,8 +336,8 @@ function Sidebar({page,setPage,col,setCol,tab,setTab,currentUser}){
           </button>
         );})}
         {!col&&<div style={{padding:"0 12px",margin:"16px 0 8px"}}><span style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:".1em",color:"var(--t3)"}}>工具</span></div>}
-        {tools.map((t,i)=>{const active=page===PAGES.HOME&&tab===t.tab;return(
-          <button key={i} onClick={()=>{setPage(PAGES.HOME);setTab(t.tab);setToolActive(true);}} style={{display:"flex",alignItems:"center",gap:10,padding:col?"9px 0":"9px 12px",justifyContent:col?"center":"flex-start",borderRadius:8,border:"none",cursor:"pointer",background:active?"rgba(212,165,116,.1)":"transparent",color:active?"var(--ac)":"var(--t2)",fontFamily:"inherit",fontSize:13,fontWeight:500,transition:"all .15s",whiteSpace:"nowrap",width:"100%"}}>
+        {tools.map((t,i)=>{const active=t.page?page===t.page:(page===PAGES.HOME&&tab===t.tab);return(
+          <button key={i} onClick={()=>{if(t.page){setPage(t.page);setToolActive(true);}else{setPage(PAGES.HOME);setTab(t.tab);setToolActive(true);}}} style={{display:"flex",alignItems:"center",gap:10,padding:col?"9px 0":"9px 12px",justifyContent:col?"center":"flex-start",borderRadius:8,border:"none",cursor:"pointer",background:active?"rgba(212,165,116,.1)":"transparent",color:active?"var(--ac)":"var(--t2)",fontFamily:"inherit",fontSize:13,fontWeight:500,transition:"all .15s",whiteSpace:"nowrap",width:"100%"}}>
             <span style={{display:"flex",flexShrink:0,opacity:active?1:.7}}>{t.icon}</span>{!col&&t.label}
           </button>
         );})}
@@ -466,35 +473,49 @@ function Lightbox({image,onClose,onEdit,onUseAsRef,onUseAsVideoRef}){
           <img src={image.imageUrl} alt={image.prompt} draggable={false} style={{transformOrigin:"center center",transform:`translate(${pos.x}px,${pos.y}px)`,maxWidth:"none",maxHeight:"none",userSelect:"none",pointerEvents:"none"}}/>
         </div>
       ):(
-        <div onClick={e=>e.stopPropagation()} style={{maxWidth:"min(90vw,960px)",width:"100%",display:"flex",flexDirection:"column",gap:12,animation:"scaleIn .2s ease-out",cursor:"default"}}>
+        <div onClick={e=>e.stopPropagation()} style={{maxWidth:"min(90vw,960px)",width:"100%",maxHeight:"calc(100vh - 48px)",display:"flex",flexDirection:"column",gap:12,animation:"scaleIn .2s ease-out",cursor:"default",overflowY:"auto"}}>
           <div ref={containerRef} onClick={toggleZoom} style={{cursor:"zoom-in",position:"relative"}}>
-            <img src={image.imageUrl} alt={image.prompt} style={{width:"100%",maxHeight:"76vh",objectFit:"contain",borderRadius:10}}/>
+            <img src={image.imageUrl} alt={image.prompt} style={{width:"100%",maxHeight:"70vh",objectFit:"contain",borderRadius:10}}/>
             <div style={{position:"absolute",bottom:10,right:10,padding:"5px 12px",borderRadius:8,background:"rgba(0,0,0,.6)",border:"1px solid rgba(255,255,255,.1)",color:"rgba(255,255,255,.7)",fontSize:11,display:"flex",alignItems:"center",gap:5,pointerEvents:"none"}}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
               点击放大查看原图
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:14,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",borderRadius:10,padding:"12px 16px"}}>
-            <div style={{flex:1,minWidth:0}}>
-              <p onClick={e=>{e.stopPropagation();if(!promptExpanded){setPromptExpanded(true);}else{navigator.clipboard.writeText(image.prompt).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);}).catch(()=>{});}}} style={{fontSize:13,fontWeight:500,lineHeight:1.6,marginBottom:4,cursor:"pointer",...(promptExpanded?{whiteSpace:"pre-wrap",wordBreak:"break-word"}:{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"})}} title={promptExpanded?"点击复制提示词":"点击展开完整提示词"}>{image.prompt}{promptExpanded&&<span style={{fontSize:11,color:copied?"#34d399":"var(--ac)",marginLeft:8,fontWeight:600}}>{copied?"已复制 ✓":"点击复制"}</span>}</p>
-              <div style={{display:"flex",gap:12,alignItems:"center"}}>
+          <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",borderRadius:10,padding:"12px 16px",display:"flex",flexDirection:"column",gap:10}}>
+            {/* 提示词区域 */}
+            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontSize:13,fontWeight:500,lineHeight:1.6,margin:0,...(promptExpanded?{whiteSpace:"pre-wrap",wordBreak:"break-word",maxHeight:"25vh",overflowY:"auto",paddingRight:4}:{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"})}}>{image.prompt}</p>
+              </div>
+              <div style={{display:"flex",gap:4,flexShrink:0,marginTop:1}}>
+                <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(image.prompt).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);}).catch(()=>{});}} title="复制提示词" style={{width:30,height:30,borderRadius:6,border:"1px solid rgba(255,255,255,.1)",background:copied?"rgba(52,211,153,.12)":"transparent",color:copied?"#34d399":"var(--t2)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+                  {copied?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                </button>
+                <button onClick={e=>{e.stopPropagation();setPromptExpanded(v=>!v);}} title={promptExpanded?"收起提示词":"展开提示词"} style={{width:30,height:30,borderRadius:6,border:"1px solid rgba(255,255,255,.1)",background:promptExpanded?"rgba(212,165,116,.12)":"transparent",color:promptExpanded?"var(--ac)":"var(--t2)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{transform:promptExpanded?"rotate(180deg)":"none",transition:"transform .2s"}}><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              </div>
+            </div>
+            {/* 元信息 + 操作按钮 */}
+            <div style={{display:"flex",alignItems:"center",gap:14}}>
+              <div style={{flex:1,display:"flex",gap:12,alignItems:"center",minWidth:0}}>
                 <span style={{fontSize:11,color:"var(--t3)"}}>{image.model}</span>
                 {image.ratio&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{image.ratio}</span>}
                 {imgMeta&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{imgMeta.w}×{imgMeta.h}</span>}
                 {imgMeta&&<span style={{fontSize:11,color:"var(--t3)",fontFamily:"'JetBrains Mono',monospace"}}>{imgMeta.fmt}</span>}
                 <span style={{fontSize:11,color:"var(--t3)"}}>{image.date}</span>
               </div>
-            </div>
-            <div style={{display:"flex",gap:6,flexShrink:0}}>
-              {onUseAsRef&&<button onClick={e=>{e.stopPropagation();onClose();onUseAsRef(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-                {Icons.edit}图像生成
-              </button>}
-              {onUseAsVideoRef&&<button onClick={e=>{e.stopPropagation();onClose();onUseAsVideoRef(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-                {Icons.video}生成视频
-              </button>}
-              <button onClick={doDownload} style={{padding:"8px 18px",borderRadius:6,border:"none",background:"var(--ac)",color:"var(--bg0)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-                {Icons.download}下载原图
-              </button>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                {onUseAsRef&&<button onClick={e=>{e.stopPropagation();onClose();onUseAsRef(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid rgba(255,255,255,.1)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                  {Icons.edit}编辑
+                </button>}
+                {onUseAsVideoRef&&<button onClick={e=>{e.stopPropagation();onClose();onUseAsVideoRef(image);}} style={{padding:"8px 18px",borderRadius:6,border:"1px solid rgba(255,255,255,.1)",background:"transparent",color:"var(--t2)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                  {Icons.video}生成视频
+                </button>}
+                <button onClick={doDownload} style={{padding:"8px 18px",borderRadius:6,border:"1px solid rgba(255,255,255,.1)",background:"var(--ac)",color:"var(--bg0)",fontFamily:"inherit",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                  {Icons.download}下载原图
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1119,6 +1140,7 @@ function VideoTab({refreshCredits,addImages,pendingVideoTasks,setPendingVideoTas
 
 function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteImage,currentUser,refreshCredits,pendingRefImage,clearPendingRef,useImageAsRef,useImageAsVideoRef}){
   const refInputRef=useRef(null);
+  const promptRef=useRef(null);
 
   const[prompt,setPrompt]=useState("");
   const[selModel,setSelModel]=useState(0);
@@ -1160,14 +1182,24 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
   // 消费从其他页面传入的参考图
   useEffect(()=>{
     if(!pendingRefImage||pendingRefImage.target!=='generate')return;
-    const url=pendingRefImage.url;
-    // 如果当前模型不支持参考图，切到第一个支持的
-    if(!MODELS[selModel].supportsRefImage){
-      const idx=MODELS.findIndex(m=>m.supportsRefImage);
-      if(idx>=0)setSelModel(idx);
+    if(!pendingRefImage.promptOnly){
+      const url=pendingRefImage.url;
+      // 如果当前模型不支持参考图，切到第一个支持的
+      if(!MODELS[selModel].supportsRefImage){
+        const idx=MODELS.findIndex(m=>m.supportsRefImage);
+        if(idx>=0)setSelModel(idx);
+      }
+      setRefImages(prev=>[...prev,{id:crypto.randomUUID(),preview:url,url,uploading:false}]);
     }
-    setRefImages(prev=>[...prev,{id:crypto.randomUUID(),preview:url,url,uploading:false}]);
+    if(pendingRefImage.prompt)setPrompt(pendingRefImage.prompt);
     clearPendingRef();
+    // 滚动到提示词框并聚焦
+    setTimeout(()=>{
+      if(promptRef.current){
+        promptRef.current.scrollIntoView({behavior:'smooth',block:'center'});
+        promptRef.current.focus();
+      }
+    },100);
   },[pendingRefImage]);
 
   const readAsDataUrl=f=>new Promise(resolve=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(f);});
@@ -1312,6 +1344,7 @@ function HomePage({tab,setTab,images,addImages,loadingImages,toggleFav,deleteIma
             )}
             {/* 提示词输入框 */}
             <textarea
+              ref={promptRef}
               value={prompt}
               onChange={e=>setPrompt(e.target.value)}
               onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();doGen();}}}
@@ -1706,6 +1739,646 @@ function LoginPage({onLogin}){
   );
 }
 
+// ─── AI 提示词助手 ──────────────────────────────────────
+const LLM_MODELS=[
+  {id:"gpt-5.2",name:"GPT-5.2",color:"#10a37f",path:"gpt-5-2"},
+  {id:"deepseek-chat",name:"DeepSeek V3",color:"#4d6bfe",path:"api"},
+  {id:"deepseek-reasoner",name:"DeepSeek R1",color:"#6366f1",path:"api"},
+];
+
+const FURNITURE_STYLES=[
+  {id:"american-modern",name:"美国现代风",desc:"简约线条、中性色调、开放空间",prompt:"American modern style interior, clean lines, neutral color palette, open space layout, minimalist furniture, natural light, warm wood accents"},
+  {id:"rural",name:"乡村风",desc:"温馨质朴、自然材质、手工质感",prompt:"Rustic country style interior, warm and cozy, natural materials, handmade textures, wooden beams, vintage furniture, earth tones"},
+  {id:"farmhouse",name:"农舍风",desc:"白色基调、原木元素、乡村气息",prompt:"Farmhouse style interior, white shiplap walls, reclaimed wood, barn doors, mason jars, linen textiles, rustic charm"},
+  {id:"industrial",name:"工业风",desc:"裸露砖墙、金属管道、粗犷质感",prompt:"Industrial style interior, exposed brick walls, metal pipes, raw concrete floors, factory lighting, steel frame furniture, loft space"},
+  {id:"mediterranean",name:"地中海风",desc:"拱形门窗、蓝白配色、手工瓷砖",prompt:"Mediterranean style interior, arched doorways, blue and white palette, terracotta tiles, hand-painted ceramics, wrought iron details, natural sunlight"},
+  {id:"french-cream",name:"法国奶油风",desc:"柔和奶白、优雅曲线、浪漫氛围",prompt:"French cream style interior, soft creamy whites, elegant curved furniture, romantic atmosphere, ornate mirrors, crystal chandeliers, silk fabrics"},
+  {id:"luxury",name:"轻奢风",desc:"金属点缀、大理石纹理、精致细节",prompt:"Modern luxury style interior, metallic gold accents, marble textures, velvet upholstery, crystal lighting, sophisticated details, high-end finishes"},
+  {id:"wabi-sabi",name:"日本侘寂风",desc:"不完美之美、自然素材、极简空间",prompt:"Japanese wabi-sabi style interior, beauty of imperfection, natural materials, minimalist space, earthy tones, handmade pottery, organic textures, soft diffused light"},
+  {id:"scandinavian",name:"北欧风",desc:"白色极简、功能至上、温暖木质",prompt:"Scandinavian style interior, white minimalist walls, functional design, warm wood floors, cozy textiles, clean aesthetic, abundant natural light"},
+  {id:"mid-century",name:"中古世纪风",desc:"有机曲线、大胆色彩、复古未来",prompt:"Mid-century modern style interior, organic curves, bold accent colors, retro-futuristic design, tapered legs, geometric patterns, walnut wood"},
+  {id:"chinese-zen",name:"新中式禅意",desc:"东方意境、留白空间、天然材质",prompt:"New Chinese zen style interior, oriental aesthetics, negative space, natural materials, bamboo elements, ink wash inspired, subtle elegance, silk screens"},
+  {id:"bohemian",name:"波西米亚风",desc:"多彩混搭、民族图案、自由随性",prompt:"Bohemian style interior, colorful mix-and-match, ethnic patterns, macrame wall hangings, layered textiles, plants, eclectic furniture, free-spirited vibe"},
+];
+
+function AiPromptPage({sendPromptToGen}){
+  // 会话列表管理
+  const[convos,setConvos]=useState(()=>{try{return JSON.parse(localStorage.getItem('ai_prompt_convos'))||[];}catch{return[];}});
+  const[activeId,setActiveId]=useState(()=>localStorage.getItem('ai_prompt_active')||null);
+  const activeConvo=convos.find(c=>c.id===activeId)||null;
+  const[messages,setMessages]=useState(()=>activeConvo?.messages||[]);
+  const[input,setInput]=useState("");
+  const[selModel,setSelModel]=useState(()=>{const v=localStorage.getItem('ai_prompt_model');return v?Number(v):0;});
+  const[loading,setLoading]=useState(false);
+  const[refImages,setRefImages]=useState([]);
+  const[dragOver,setDragOver]=useState(false);
+  const[sideCol,setSideCol]=useState(()=>localStorage.getItem('ai_chat_side_col')==='1');
+  const chatEndRef=useRef(null);
+  const inputRef=useRef(null);
+  const abortRef=useRef(null);
+
+  // 切换会话时加载消息
+  useEffect(()=>{
+    const c=convos.find(c=>c.id===activeId);
+    setMessages(c?.messages||[]);
+  },[activeId]);
+
+  // 新建会话
+  const newConvo=()=>{
+    if(loading)return;
+    const id=crypto.randomUUID();
+    const c={id,title:"新对话",date:new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),messages:[]};
+    setConvos(prev=>[c,...prev]);
+    setActiveId(id);
+    setMessages([]);
+    setInput("");
+    setRefImages([]);
+  };
+
+  // 删除会话
+  const deleteConvo=(id,e)=>{
+    e.stopPropagation();
+    setConvos(prev=>prev.filter(c=>c.id!==id));
+    if(activeId===id){setActiveId(null);setMessages([]);}
+  };
+
+  // 持久化（去掉 data: 图片避免超出 localStorage 配额）
+  useEffect(()=>{
+    if(loading)return;
+    try{
+      const stripImg=v=>{if(typeof v==='string'&&v.startsWith('data:'))return '[image]';return v;};
+      const saved=convos.map(c=>({...c,messages:c.messages.map(m=>{
+        const cleaned={...m};
+        if(cleaned._images)cleaned._images=cleaned._images.map(stripImg);
+        if(Array.isArray(cleaned.content))cleaned.content=cleaned.content.filter(p=>p.type==='text');
+        return cleaned;
+      })}));
+      localStorage.setItem('ai_prompt_convos',JSON.stringify(saved));
+    }catch{}
+  },[convos,loading]);
+  useEffect(()=>{if(activeId)localStorage.setItem('ai_prompt_active',activeId);},[activeId]);
+  useEffect(()=>{localStorage.setItem('ai_prompt_model',String(selModel));},[selModel]);
+  useEffect(()=>{localStorage.setItem('ai_chat_side_col',sideCol?'1':'0');},[sideCol]);
+
+  // 同步 messages 回 convos
+  const syncMessages=(msgs)=>{
+    setMessages(msgs);
+    if(!activeId)return;
+    setConvos(prev=>prev.map(c=>c.id===activeId?{...c,messages:msgs}:c));
+  };
+
+  // 自动生成标题（取第一条用户消息前20字）
+  const autoTitle=(msgs)=>{
+    const first=msgs.find(m=>m.role==='user');
+    const text=first?._display||first?.content||'';
+    const title=typeof text==='string'?text.slice(0,20):'对话';
+    return title||(first?._images?.length?'图片对话':'新对话');
+  };
+
+  const scrollToBottom=()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});};
+  useEffect(scrollToBottom,[messages]);
+
+  // 读取图片为 data URL
+  const readAsDataUrl=f=>new Promise(resolve=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(f);});
+
+  const handleFiles=async files=>{
+    const valid=[...files].filter(f=>f.type.startsWith('image/'));
+    if(!valid.length)return;
+    const urls=await Promise.all(valid.map(f=>readAsDataUrl(f)));
+    setRefImages(prev=>[...prev,...urls]);
+  };
+
+  const onDrop=e=>{e.preventDefault();setDragOver(false);handleFiles(e.dataTransfer.files);};
+  const onDragOver=e=>{e.preventDefault();setDragOver(true);};
+  const onDragLeave=()=>setDragOver(false);
+
+  const onPaste=e=>{
+    const files=[...e.clipboardData.items].filter(i=>i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);
+    if(files.length)handleFiles(files);
+  };
+
+  const sendMessage=async()=>{
+    const text=input.trim();
+    if(!text&&!refImages.length)return;
+    if(loading)return;
+
+    // 如果没有激活会话，自动新建
+    let curId=activeId;
+    if(!curId){
+      const id=crypto.randomUUID();
+      const c={id,title:"新对话",date:new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),messages:[]};
+      setConvos(prev=>[c,...prev]);
+      setActiveId(id);
+      curId=id;
+    }
+
+    // 构建用户消息 content
+    let content;
+    if(refImages.length){
+      content=[{type:"text",text:text||"请分析这张图片"}];
+      for(const img of refImages){
+        content.push({type:"image_url",image_url:{url:img}});
+      }
+    }else{
+      content=text;
+    }
+
+    const userMsg={role:"user",content,_display:text,_images:[...refImages]};
+    const newMessages=[...messages,userMsg];
+    syncMessages(newMessages);
+    setInput("");
+    setRefImages([]);
+    setLoading(true);
+
+    // 自动更新标题（第一条消息时）
+    if(newMessages.filter(m=>m.role==='user').length===1){
+      const title=autoTitle(newMessages);
+      setConvos(prev=>prev.map(c=>c.id===curId?{...c,title}:c));
+    }
+
+    // 构建 API messages（加入 system prompt）
+    const sysMsg={role:"system",content:"你是一个多功能的 AI 创意助手，可以帮助用户进行灵感探索、图像分析、创意讨论和提示词生成。用户可能会分享参考图片让你描述和分析，也可能和你讨论各种创意想法。如果用户需要图像生成提示词，请生成高质量的英文提示词（用代码块包裹），并用中文简要解释思路。请用友好专业的语气回复。"};
+    const apiMsgs=[sysMsg,...newMessages.map(m=>({role:m.role,content:m.content}))];
+
+    const assistantMsg={role:"assistant",content:"",_display:""};
+    const withAssistant=[...newMessages,assistantMsg];
+    syncMessages(withAssistant);
+
+    try{
+      abortRef.current=new AbortController();
+      const res=await fetch(`${import.meta.env.VITE_API_BASE||''}/api/chat`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('token')}`},
+        body:JSON.stringify({model:LLM_MODELS[selModel].id,path:LLM_MODELS[selModel].path,messages:apiMsgs,stream:true}),
+        signal:abortRef.current.signal,
+      });
+
+      if(!res.ok){
+        const err=await res.text();
+        const errMsgs=[...newMessages,{...assistantMsg,content:`错误: ${err}`,_display:`错误: ${err}`}];
+        syncMessages(errMsgs);
+        setLoading(false);
+        return;
+      }
+
+      const reader=res.body.getReader();
+      const decoder=new TextDecoder();
+      let buf="";
+      let full="";
+
+      while(true){
+        const{done,value}=await reader.read();
+        if(done)break;
+        buf+=decoder.decode(value,{stream:true});
+        const lines=buf.split('\n');
+        buf=lines.pop()||"";
+        for(const line of lines){
+          if(!line.startsWith('data: '))continue;
+          const data=line.slice(6);
+          if(data==='[DONE]')break;
+          try{
+            const json=JSON.parse(data);
+            const delta=json.choices?.[0]?.delta?.content;
+            if(delta){
+              full+=delta;
+              setMessages(prev=>{const a=[...prev];a[a.length-1]={...a[a.length-1],content:full,_display:full};return a;});
+            }
+          }catch{}
+        }
+      }
+      // 流结束，同步最终结果到 convos
+      setMessages(prev=>{
+        const final=[...prev];
+        setConvos(pc=>pc.map(c=>c.id===curId?{...c,messages:final}:c));
+        return final;
+      });
+    }catch(e){
+      if(e.name!=='AbortError'){
+        const errMsgs=[...newMessages,{...assistantMsg,content:`请求失败: ${e.message}`,_display:`请求失败: ${e.message}`}];
+        syncMessages(errMsgs);
+      }
+    }
+    setLoading(false);
+    abortRef.current=null;
+  };
+
+  const stopGeneration=()=>{abortRef.current?.abort();setLoading(false);};
+
+  // 从消息中提取代码块
+  const extractCodeBlock=(text)=>{
+    const m=text.match(/```[\s\S]*?\n([\s\S]*?)```/);
+    return m?m[1].trim():null;
+  };
+
+  const copyText=(text)=>{navigator.clipboard.writeText(text).catch(()=>{});};
+
+  // 渲染 markdown 代码块
+  const renderContent=(text)=>{
+    if(!text)return null;
+    const parts=text.split(/(```[\s\S]*?```)/g);
+    return parts.map((part,i)=>{
+      const codeMatch=part.match(/```(\w*)\n?([\s\S]*?)```/);
+      if(codeMatch){
+        const code=codeMatch[2].trim();
+        return <div key={i} style={{position:"relative",margin:"8px 0"}}>
+          <pre style={{background:"rgba(0,0,0,.3)",border:"1px solid var(--bd)",borderRadius:8,padding:"14px 16px",fontSize:13,lineHeight:1.7,overflowX:"auto",color:"var(--ac)",fontFamily:"'JetBrains Mono',monospace",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{code}</pre>
+          <div style={{position:"absolute",top:8,right:8,display:"flex",gap:4}}>
+            <button onClick={()=>copyText(code)} style={{padding:"4px 10px",borderRadius:5,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.06)",color:"var(--t2)",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>复制</button>
+            {sendPromptToGen&&<button onClick={()=>sendPromptToGen(code)} style={{padding:"4px 10px",borderRadius:5,border:"1px solid rgba(212,165,116,.3)",background:"rgba(212,165,116,.1)",color:"var(--ac)",fontSize:11,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:3}}>{Icons.pillSend} 生图</button>}
+          </div>
+        </div>;
+      }
+      return <span key={i} style={{whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{part}</span>;
+    });
+  };
+
+  return(
+    <div style={{display:"flex",height:"calc(100vh - 100px)"}}>
+      {/* ── 左侧面板 ── */}
+      <div style={{width:sideCol?44:200,minWidth:sideCol?44:200,flexShrink:0,borderRight:"1px solid var(--bd)",display:"flex",flexDirection:"column",transition:"width .2s ease,min-width .2s ease",overflow:"hidden"}}>
+        {/* 顶部按钮 */}
+        <div style={{display:"flex",alignItems:"center",gap:4,padding:sideCol?"6px 6px 8px":"6px 6px 8px",flexShrink:0}}>
+          <button onClick={()=>setSideCol(v=>!v)} title={sideCol?"展开":"折叠"} style={{width:30,height:30,borderRadius:8,border:"1px solid var(--bd)",background:"transparent",color:"var(--t3)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ac)';e.currentTarget.style.color='var(--t1)';}} onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--bd)';e.currentTarget.style.color='var(--t3)';}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          </button>
+          {!sideCol&&(
+            <button onClick={newConvo} style={{flex:1,padding:"6px 0",borderRadius:8,border:"1px dashed rgba(212,165,116,.25)",background:"transparent",color:"var(--ac)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5,transition:"all .15s"}} onMouseEnter={e=>e.currentTarget.style.background='rgba(212,165,116,.06)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新对话
+            </button>
+          )}
+          {sideCol&&(
+            <button onClick={newConvo} title="新对话" style={{width:30,height:30,borderRadius:8,border:"1px dashed rgba(212,165,116,.25)",background:"transparent",color:"var(--ac)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0,transition:"all .15s"}} onMouseEnter={e=>e.currentTarget.style.background='rgba(212,165,116,.06)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          )}
+        </div>
+        {/* 会话列表 */}
+        <div style={{flex:1,overflowY:"auto",overflowX:"hidden",display:"flex",flexDirection:"column",gap:1,padding:"0 4px"}}>
+          {convos.map(c=>(
+            <div key={c.id} className="convo-item" onClick={()=>{if(!loading){setActiveId(c.id);if(sideCol)setSideCol(false);}}} style={{padding:sideCol?"6px":"8px 8px",borderRadius:8,cursor:"pointer",background:activeId===c.id?"rgba(212,165,116,.1)":"transparent",border:activeId===c.id?"1px solid rgba(212,165,116,.15)":"1px solid transparent",transition:"all .15s",display:"flex",alignItems:"center",gap:8,position:"relative",minHeight:sideCol?32:undefined}} onMouseEnter={e=>{if(activeId!==c.id)e.currentTarget.style.background='rgba(255,255,255,.03)';}} onMouseLeave={e=>{if(activeId!==c.id)e.currentTarget.style.background='transparent';}}>
+              {sideCol?(
+                <div style={{width:22,height:22,borderRadius:6,background:activeId===c.id?"rgba(212,165,116,.15)":"rgba(255,255,255,.06)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,margin:"0 auto"}}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={activeId===c.id?"var(--ac)":"var(--t3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+              ):(
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:500,color:activeId===c.id?"var(--t1)":"var(--t2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:2}}>{c.title||"新对话"}</div>
+                  <div style={{fontSize:10,color:"var(--t3)"}}>{c.date}</div>
+                </div>
+              )}
+              {!sideCol&&<button className="convo-del" onClick={e=>deleteConvo(c.id,e)} style={{opacity:0,position:"absolute",top:6,right:4,width:18,height:18,borderRadius:4,border:"none",background:"transparent",color:"var(--t3)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,transition:"all .15s"}} onMouseEnter={e=>{e.currentTarget.style.color='#ff6b6b';}} onMouseLeave={e=>{e.currentTarget.style.color='var(--t3)';}}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>}
+            </div>
+          ))}
+          {!sideCol&&convos.length===0&&<div style={{padding:"16px 8px",textAlign:"center",fontSize:11,color:"var(--t3)",lineHeight:1.6}}>暂无对话<br/>点击上方新建</div>}
+        </div>
+      </div>
+
+      {/* ── 主聊天区 ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,position:"relative"}}>
+        {/* 消息滚动区 */}
+        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+          <div style={{flex:1,maxWidth:720,width:"100%",margin:"0 auto",padding:"20px 24px 16px",display:"flex",flexDirection:"column",gap:20}}>
+            {messages.length===0&&(
+              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,color:"var(--t3)"}}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.3}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:600,color:"var(--t2)",marginBottom:6}}>AI 对话</div>
+                  <div style={{fontSize:13,lineHeight:1.6,color:"var(--t3)"}}>交流创意灵感、分析参考图、生成提示词</div>
+                </div>
+              </div>
+            )}
+            {messages.map((msg,i)=>(
+              msg.role==="user"?(
+                <div key={i} style={{display:"flex",justifyContent:"flex-end"}}>
+                  <div style={{maxWidth:"75%"}}>
+                    {msg._images?.length>0&&msg._images[0]!=='[image]'&&(
+                      <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                        {msg._images.map((img,j)=>(
+                          img!=='[image]'&&<img key={j} src={img} style={{width:80,height:80,objectFit:"cover",borderRadius:10,border:"1px solid var(--bd)"}}/>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{padding:"10px 16px",borderRadius:"18px 18px 4px 18px",background:"var(--ac)",color:"var(--bg0)",fontSize:13,lineHeight:1.7,wordBreak:"break-word"}}>
+                      {msg._display||"[图片]"}
+                    </div>
+                  </div>
+                </div>
+              ):(
+                <div key={i} style={{maxWidth:"85%"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                    <div style={{width:22,height:22,borderRadius:6,background:`${LLM_MODELS[selModel].color}18`,border:`1px solid ${LLM_MODELS[selModel].color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>✨</div>
+                    <span style={{fontSize:11,fontWeight:600,color:LLM_MODELS[selModel].color}}>{LLM_MODELS[selModel].name}</span>
+                  </div>
+                  <div style={{fontSize:13,lineHeight:1.8,color:"var(--t1)",wordBreak:"break-word"}}>
+                    {renderContent(msg._display)}
+                    {loading&&i===messages.length-1&&<span style={{display:"inline-block",width:6,height:15,background:"var(--ac)",marginLeft:2,animation:"blink 1s infinite",verticalAlign:"text-bottom",borderRadius:1}}/>}
+                  </div>
+                  {/* 助手消息底部操作栏 */}
+                  {msg._display&&!(loading&&i===messages.length-1)&&(
+                    <div style={{display:"flex",gap:4,marginTop:6}}>
+                      <button onClick={()=>copyText(msg._display)} style={{padding:"3px 10px",borderRadius:5,border:"1px solid var(--bd)",background:"transparent",color:"var(--t3)",fontSize:11,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:4}}>
+                        {Icons.copy} 复制全部
+                      </button>
+                      {sendPromptToGen&&extractCodeBlock(msg._display)&&(
+                        <button onClick={()=>sendPromptToGen(extractCodeBlock(msg._display))} style={{padding:"3px 10px",borderRadius:5,border:"1px solid rgba(212,165,116,.25)",background:"rgba(212,165,116,.06)",color:"var(--ac)",fontSize:11,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:4}}>
+                          {Icons.pillSend} 发送到生图
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            ))}
+            <div ref={chatEndRef}/>
+          </div>
+        </div>
+
+        {/* 底部输入区 */}
+        <div style={{flexShrink:0,padding:"0 24px 16px",display:"flex",justifyContent:"center"}}>
+          <div onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} style={{width:"100%",maxWidth:720,border:dragOver?"1.5px solid var(--ac)":"1px solid var(--bd)",borderRadius:16,background:"var(--bg2)",transition:"border .15s"}}>
+            {refImages.length>0&&(
+              <div style={{display:"flex",gap:6,padding:"10px 14px 0",flexWrap:"wrap"}}>
+                {refImages.map((img,i)=>(
+                  <div key={i} style={{position:"relative",width:56,height:56}}>
+                    <img src={img} style={{width:56,height:56,objectFit:"cover",borderRadius:8,border:"1px solid var(--bd)"}}/>
+                    <button onClick={()=>setRefImages(prev=>prev.filter((_,j)=>j!==i))} style={{position:"absolute",top:-5,right:-5,width:16,height:16,borderRadius:"50%",background:"var(--bg0)",border:"1px solid var(--bd)",color:"var(--t3)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,padding:0}}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{display:"flex",alignItems:"flex-end",gap:8,padding:"10px 14px"}}>
+              <label style={{cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:8,background:"transparent",color:"var(--t3)",flexShrink:0,transition:"color .15s"}} title="上传图片" onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'} onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
+                <input type="file" accept="image/*" multiple hidden onChange={e=>handleFiles(e.target.files)}/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </label>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();sendMessage();}}}
+                onPaste={onPaste}
+                placeholder="输入消息... ⌘Enter 发送"
+                rows={1}
+                style={{flex:1,resize:"none",background:"transparent",border:"none",outline:"none",color:"var(--t1)",fontFamily:"inherit",fontSize:14,lineHeight:1.6,padding:"5px 0",maxHeight:120,overflowY:"auto"}}
+                onInput={e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';}}
+              />
+              {loading?(
+                <button onClick={stopGeneration} style={{width:30,height:30,borderRadius:8,border:"none",background:"rgba(255,80,80,.12)",color:"#ff6b6b",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                </button>
+              ):(
+                <button onClick={sendMessage} disabled={!input.trim()&&!refImages.length} style={{width:30,height:30,borderRadius:8,border:"none",background:(input.trim()||refImages.length)?"var(--ac)":"rgba(255,255,255,.06)",color:(input.trim()||refImages.length)?"var(--bg0)":"var(--t3)",cursor:(input.trim()||refImages.length)?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                </button>
+              )}
+            </div>
+            {/* 模型切换 */}
+            <div style={{display:"flex",alignItems:"center",gap:6,padding:"0 14px 8px"}}>
+              {LLM_MODELS.map((m,i)=>(
+                <button key={m.id} onClick={()=>setSelModel(i)} style={{padding:"3px 10px",borderRadius:6,border:selModel===i?`1px solid ${m.color}40`:"1px solid transparent",background:selModel===i?`${m.color}10`:"transparent",color:selModel===i?m.color:"var(--t3)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>{m.name}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── 提示词模板库 ──────────────────────────────────────────
+const DEFAULT_PROMPT_CATEGORIES=[
+  {id:"modern",name:"现代风格"},
+  {id:"country",name:"乡村风"},
+  {id:"product",name:"产品特写"},
+  {id:"other",name:"其他"},
+];
+
+const DEFAULT_PROMPT_TEMPLATES=FURNITURE_STYLES.map(s=>({
+  id:s.id,title:s.name,prompt:s.prompt,categoryId:s.id==="american-modern"||s.id==="mid-century"?"modern":s.id==="rural"||s.id==="farmhouse"?"country":"other",coverImg:null,desc:s.desc,
+}));
+
+function PromptLibPage({sendPromptToGen}){
+  const[categories,setCategories]=useState(()=>{
+    try{const v=JSON.parse(localStorage.getItem('prompt_categories'));return v&&v.length?v:DEFAULT_PROMPT_CATEGORIES;}catch{return DEFAULT_PROMPT_CATEGORIES;}
+  });
+  const[templates,setTemplates]=useState(()=>{
+    try{const v=JSON.parse(localStorage.getItem('prompt_templates'));return v&&v.length?v:DEFAULT_PROMPT_TEMPLATES;}catch{return DEFAULT_PROMPT_TEMPLATES;}
+  });
+  const[activeCat,setActiveCat]=useState("all");
+  const[editModal,setEditModal]=useState(null);
+  const[catModal,setCatModal]=useState(null);
+  const[copied,setCopied]=useState(null);
+  const[hovered,setHovered]=useState(null);
+  const[dragCat,setDragCat]=useState(null);
+  const[dragOverCat,setDragOverCat]=useState(null);
+
+  useEffect(()=>{try{localStorage.setItem('prompt_categories',JSON.stringify(categories));}catch{}},[categories]);
+  useEffect(()=>{try{localStorage.setItem('prompt_templates',JSON.stringify(templates));}catch{}},[templates]);
+
+  const copyPrompt=(id,text)=>{navigator.clipboard.writeText(text).catch(()=>{});setCopied(id);setTimeout(()=>setCopied(null),1500);};
+  const sendToGen=(prompt)=>{if(sendPromptToGen)sendPromptToGen(prompt);};
+
+  const saveCard=(card)=>{
+    if(editModal.mode==='add'){setTemplates(prev=>[{...card,id:crypto.randomUUID()},...prev]);}
+    else{setTemplates(prev=>prev.map(t=>t.id===card.id?card:t));}
+    setEditModal(null);
+  };
+  const deleteCard=(id)=>{setTemplates(prev=>prev.filter(t=>t.id!==id));};
+  const saveCat=(cat)=>{
+    if(catModal.mode==='add'){setCategories(prev=>[...prev,{...cat,id:crypto.randomUUID()}]);}
+    else{setCategories(prev=>prev.map(c=>c.id===cat.id?cat:c));}
+    setCatModal(null);
+  };
+  const deleteCat=(id)=>{
+    setCategories(prev=>prev.filter(c=>c.id!==id));
+    setTemplates(prev=>prev.map(t=>t.categoryId===id?{...t,categoryId:"other"}:t));
+    if(activeCat===id)setActiveCat("all");
+  };
+  const readAsDataUrl=f=>new Promise(resolve=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(f);});
+
+  // 单张卡片渲染（与 ImageCard 同风格）
+  const PromptCard=({card})=>{
+    const isH=hovered===card.id;
+    return(
+      <div onMouseEnter={()=>setHovered(card.id)} onMouseLeave={()=>setHovered(null)} style={{borderRadius:10,overflow:"hidden",position:"relative",background:"var(--bgc)",border:"1px solid var(--bd)",transition:"all .2s ease",transform:isH?"translateY(-2px)":"none",boxShadow:isH?"0 6px 20px rgba(0,0,0,.2)":"none"}}>
+        {/* 图片区：按比例自适应 */}
+        <div style={{overflow:"hidden",background:"var(--bg2)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",...(card.coverImg?{}:{aspectRatio:"4/3"})}}>
+          {card.coverImg
+            ? <img src={card.coverImg} alt={card.title} style={{width:"100%",display:"block",height:"auto"}}/>
+            : <span style={{color:"var(--t3)",display:"flex",opacity:.4}}>{Icons.image}</span>
+          }
+          {/* hover 操作层 */}
+          <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,.75),transparent 60%)",opacity:isH?1:0,transition:"opacity .2s",display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:10}}>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>copyPrompt(card.id,card.prompt)} style={{height:28,padding:"0 10px",borderRadius:6,border:"none",background:copied===card.id?"rgba(74,222,128,.25)":"rgba(255,255,255,.12)",color:copied===card.id?"#4ade80":"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4,backdropFilter:"blur(8px)",fontSize:11,fontFamily:"inherit",fontWeight:500}}>
+                {copied===card.id?Icons.check:Icons.copy}{copied===card.id?'已复制':'复制'}
+              </button>
+              <button onClick={()=>sendToGen(card.prompt)} style={{height:28,padding:"0 10px",borderRadius:6,border:"none",background:"rgba(212,165,116,.25)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4,backdropFilter:"blur(8px)",fontSize:11,fontFamily:"inherit",fontWeight:500}}>
+                {Icons.pillSend} 生图
+              </button>
+            </div>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>setEditModal({mode:'edit',card})} style={{width:28,height:28,borderRadius:6,border:"none",background:"rgba(255,255,255,.12)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}}>{Icons.edit}</button>
+              <button onClick={()=>{if(confirm('确定删除此提示词？'))deleteCard(card.id);}} style={{width:28,height:28,borderRadius:6,border:"none",background:"rgba(255,255,255,.12)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}}>{Icons.trash}</button>
+            </div>
+          </div>
+        </div>
+        {/* 文字区 */}
+        <div style={{padding:"10px 12px"}}>
+          <p style={{fontSize:12,fontWeight:600,lineHeight:1.5,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"var(--t1)"}}>{card.title}</p>
+          <p style={{fontSize:11,color:"var(--t3)",lineHeight:1.5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{card.prompt}</p>
+        </div>
+      </div>
+    );
+  };
+
+  // 按分类分组渲染
+  const renderByCategory=()=>{
+    if(activeCat!=="all"){
+      const cards=templates.filter(t=>t.categoryId===activeCat);
+      return(
+        <>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+            <h3 style={{fontSize:15,fontWeight:600,color:"var(--t2)"}}>{categories.find(c=>c.id===activeCat)?.name}</h3>
+            <button onClick={()=>setCatModal({mode:'edit',cat:categories.find(c=>c.id===activeCat)})} style={{padding:"3px 10px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t3)",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>编辑</button>
+            <button onClick={()=>{if(confirm('确定删除此分类？该分类下的提示词将移至"其他"'))deleteCat(activeCat);}} style={{padding:"3px 10px",borderRadius:6,border:"1px solid rgba(239,68,68,.3)",background:"rgba(239,68,68,.06)",color:"#ef4444",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>删除</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
+            {cards.map(card=><PromptCard key={card.id} card={card}/>)}
+          </div>
+          {cards.length===0&&<div style={{padding:"40px 20px",textAlign:"center",color:"var(--t3)",fontSize:13}}>此分类下暂无提示词</div>}
+        </>
+      );
+    }
+    // "全部"：按分类分组展示
+    const catOrder=[...categories];
+    const uncategorized=templates.filter(t=>!categories.some(c=>c.id===t.categoryId));
+    return(
+      <>
+        {catOrder.map(cat=>{
+          const cards=templates.filter(t=>t.categoryId===cat.id);
+          if(cards.length===0)return null;
+          return(
+            <div key={cat.id} style={{marginBottom:32}}>
+              <h3 style={{fontSize:15,fontWeight:600,marginBottom:14,color:"var(--t2)"}}>{cat.name}</h3>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
+                {cards.map(card=><PromptCard key={card.id} card={card}/>)}
+              </div>
+            </div>
+          );
+        })}
+        {uncategorized.length>0&&(
+          <div style={{marginBottom:32}}>
+            <h3 style={{fontSize:15,fontWeight:600,marginBottom:14,color:"var(--t2)"}}>未分类</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:16}}>
+              {uncategorized.map(card=><PromptCard key={card.id} card={card}/>)}
+            </div>
+          </div>
+        )}
+        {templates.length===0&&<div style={{padding:"60px 20px",textAlign:"center",color:"var(--t3)"}}><div style={{fontSize:14,marginBottom:8}}>暂无提示词</div><div style={{fontSize:12}}>点击右上角「新增提示词」添加</div></div>}
+      </>
+    );
+  };
+
+  // Card edit modal
+  const CardModal=()=>{
+    if(!editModal)return null;
+    const[form,setForm]=useState(editModal.card);
+    return createPortal(
+      <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}} onClick={()=>setEditModal(null)}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg1)",border:"1px solid var(--bd)",borderRadius:16,padding:28,width:480,maxHeight:"80vh",overflowY:"auto"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:20}}>{editModal.mode==='add'?'新增提示词':'编辑提示词'}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <label style={{fontSize:12,color:"var(--t3)",display:"block",marginBottom:4}}>标题</label>
+              <input value={form.title||''} onChange={e=>setForm({...form,title:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid var(--bd)",background:"var(--bgc)",color:"var(--t1)",fontFamily:"inherit",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:"var(--t3)",display:"block",marginBottom:4}}>提示词内容（英文 prompt）</label>
+              <textarea value={form.prompt||''} onChange={e=>setForm({...form,prompt:e.target.value})} rows={4} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid var(--bd)",background:"var(--bgc)",color:"var(--t1)",fontFamily:"inherit",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.6,boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:"var(--t3)",display:"block",marginBottom:4}}>所属分类</label>
+              <select value={form.categoryId||''} onChange={e=>setForm({...form,categoryId:e.target.value})} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid var(--bd)",background:"var(--bgc)",color:"var(--t1)",fontFamily:"inherit",fontSize:13,outline:"none"}}>
+                {categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:12,color:"var(--t3)",display:"block",marginBottom:4}}>封面图（可选）</label>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                {form.coverImg&&<img src={form.coverImg} style={{width:80,height:'auto',maxHeight:80,objectFit:"contain",borderRadius:8,border:"1px solid var(--bd)"}}/>}
+                <label style={{padding:"6px 14px",borderRadius:6,border:"1px solid var(--bd)",background:"var(--bgc)",color:"var(--t2)",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+                  上传图片
+                  <input type="file" accept="image/*" hidden onChange={async e=>{const f=e.target.files[0];if(f){const url=await readAsDataUrl(f);setForm({...form,coverImg:url});}}}/>
+                </label>
+                {form.coverImg&&<button onClick={()=>setForm({...form,coverImg:null})} style={{padding:"6px 10px",borderRadius:6,border:"1px solid rgba(239,68,68,.3)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>移除</button>}
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20}}>
+            <button onClick={()=>setEditModal(null)} style={{padding:"8px 18px",borderRadius:8,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>取消</button>
+            <button onClick={()=>saveCard(form)} disabled={!form.title?.trim()||!form.prompt?.trim()} style={{padding:"8px 18px",borderRadius:8,border:"none",background:"var(--ac)",color:"var(--bg0)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",opacity:(!form.title?.trim()||!form.prompt?.trim())?.5:1}}>保存</button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
+  const CatModal=()=>{
+    if(!catModal)return null;
+    const[name,setName]=useState(catModal.cat?.name||'');
+    return createPortal(
+      <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.6)",backdropFilter:"blur(4px)"}} onClick={()=>setCatModal(null)}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"var(--bg1)",border:"1px solid var(--bd)",borderRadius:16,padding:28,width:360}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:16}}>{catModal.mode==='add'?'新增分类':'编辑分类'}</div>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="分类名称" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid var(--bd)",background:"var(--bgc)",color:"var(--t1)",fontFamily:"inherit",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:16}}/>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+            <button onClick={()=>setCatModal(null)} style={{padding:"8px 18px",borderRadius:8,border:"1px solid var(--bd)",background:"transparent",color:"var(--t2)",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>取消</button>
+            <button onClick={()=>{if(name.trim())saveCat({...catModal.cat,name:name.trim()});}} disabled={!name.trim()} style={{padding:"8px 18px",borderRadius:8,border:"none",background:"var(--ac)",color:"var(--bg0)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",opacity:name.trim()?1:.5}}>保存</button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
+  return(
+    <div style={{maxWidth:1200,margin:"0 auto"}}>
+      {/* 顶部：分类标签栏 + 新增按钮 */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:24,flexWrap:"wrap"}}>
+        <button onClick={()=>setActiveCat("all")} style={{padding:"6px 16px",borderRadius:20,border:activeCat==="all"?"1px solid var(--ac)":"1px solid var(--bd)",background:activeCat==="all"?"rgba(212,165,116,.12)":"transparent",color:activeCat==="all"?"var(--ac)":"var(--t2)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>全部</button>
+        {categories.map((cat,idx)=>(
+          <button key={cat.id} draggable
+            onDragStart={e=>{setDragCat(idx);e.dataTransfer.effectAllowed='move';}}
+            onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move';setDragOverCat(idx);}}
+            onDragLeave={()=>setDragOverCat(null)}
+            onDrop={e=>{e.preventDefault();if(dragCat!==null&&dragCat!==idx){setCategories(prev=>{const a=[...prev];const[item]=a.splice(dragCat,1);a.splice(idx,0,item);return a;});}setDragCat(null);setDragOverCat(null);}}
+            onDragEnd={()=>{setDragCat(null);setDragOverCat(null);}}
+            onClick={()=>setActiveCat(cat.id)} onContextMenu={e=>{e.preventDefault();setCatModal({mode:'edit',cat});}}
+            style={{padding:"6px 16px",borderRadius:20,border:activeCat===cat.id?"1px solid var(--ac)":dragOverCat===idx?"1px solid var(--ac)":"1px solid var(--bd)",background:activeCat===cat.id?"rgba(212,165,116,.12)":dragOverCat===idx?"rgba(212,165,116,.06)":"transparent",color:activeCat===cat.id?"var(--ac)":"var(--t2)",fontSize:12,fontWeight:600,cursor:dragCat!==null?"grabbing":"grab",fontFamily:"inherit",transition:"all .15s",opacity:dragCat===idx?.5:1,transform:dragOverCat===idx&&dragCat!==idx?"scale(1.08)":"none"}}>
+            {cat.name}
+          </button>
+        ))}
+        <button onClick={()=>setCatModal({mode:'add',cat:{id:'',name:''}})} style={{padding:"6px 12px",borderRadius:20,border:"1px dashed rgba(212,165,116,.3)",background:"transparent",color:"var(--ac)",fontSize:12,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:4}} title="新增分类">
+          {Icons.plus} 分类
+        </button>
+        <div style={{flex:1}}/>
+        <button onClick={()=>setEditModal({mode:'add',card:{title:'',prompt:'',categoryId:activeCat!=='all'?activeCat:categories[0]?.id||'other',coverImg:null}})} style={{padding:"8px 18px",borderRadius:8,border:"none",background:"var(--ac)",color:"var(--bg0)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+          {Icons.plus} 新增提示词
+        </button>
+      </div>
+
+      {renderByCategory()}
+      <CardModal/>
+      <CatModal/>
+    </div>
+  );
+}
+
 // ─── 管理员面板 ──────────────────────────────────────────
 function AdminPage(){
   const[users,setUsers]=useState([]);
@@ -1955,7 +2628,11 @@ export default function App(){
   // ── 跨页面参考图注入 ──
   const[pendingRefImage,setPendingRefImage]=useState(null); // {url, target:'generate'|'video'}
   const useImageAsRef=(image)=>{
-    setPendingRefImage({url:image.imageUrl,target:'generate'});
+    setPendingRefImage({url:image.imageUrl,prompt:image.prompt||'',target:'generate'});
+    setPage(PAGES.HOME);setTab('generate');
+  };
+  const sendPromptToGen=(prompt)=>{
+    setPendingRefImage({url:null,prompt,target:'generate',promptOnly:true});
     setPage(PAGES.HOME);setTab('generate');
   };
   const useImageAsVideoRef=(image)=>{
@@ -1973,7 +2650,7 @@ export default function App(){
       <Sidebar page={page} setPage={setPage} col={col} setCol={setCol} tab={tab} setTab={setTab} currentUser={currentUser}/>
       <main style={{flex:1,marginLeft:col?56:"var(--sw)",transition:"margin-left .25s ease",minHeight:"100vh"}}>
         <header style={{position:"sticky",top:0,zIndex:50,background:"rgba(17,17,19,.9)",backdropFilter:"blur(12px)",borderBottom:"1px solid var(--bd)",padding:"0 28px",height:52,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <span style={{fontSize:13,color:"var(--t3)",fontWeight:500}}>{page===PAGES.HOME&&"首页"}{page===PAGES.LIBRARY&&"我的作品"}{page===PAGES.FAVORITES&&"收藏"}{page===PAGES.ADMIN&&"管理面板"}</span>
+          <span style={{fontSize:13,color:"var(--t3)",fontWeight:500}}>{page===PAGES.HOME&&"首页"}{page===PAGES.LIBRARY&&"我的作品"}{page===PAGES.FAVORITES&&"收藏"}{page===PAGES.AI_PROMPT&&"AI 对话"}{page===PAGES.PROMPT_LIB&&"提示词模板"}{page===PAGES.ADMIN&&"管理面板"}</span>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:6,background:"var(--bg2)",border:"1px solid var(--bd)"}}>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:600,color:"var(--ac)"}}>{currentUser?.credits?.toLocaleString()??'—'}</span>
@@ -1991,6 +2668,8 @@ export default function App(){
           <div style={{display:page===PAGES.HOME?'block':'none'}}><HomePage tab={tab} setTab={setTab} images={images} addImages={addImages} loadingImages={loadingImages} toggleFav={toggleFav} deleteImage={deleteImage} currentUser={currentUser} refreshCredits={refreshCredits} pendingRefImage={pendingRefImage} clearPendingRef={()=>setPendingRefImage(null)} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/></div>
           {page===PAGES.LIBRARY&&<LibraryPage images={images} toggleFav={toggleFav} deleteImage={deleteImage} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/>}
           {page===PAGES.FAVORITES&&<LibraryPage favorites images={images} toggleFav={toggleFav} deleteImage={deleteImage} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/>}
+          {page===PAGES.AI_PROMPT&&<AiPromptPage sendPromptToGen={sendPromptToGen}/>}
+          {page===PAGES.PROMPT_LIB&&<PromptLibPage sendPromptToGen={sendPromptToGen}/>}
           {page===PAGES.ADMIN&&currentUser?.role==='admin'&&<AdminPage/>}
         </div>
       </main>

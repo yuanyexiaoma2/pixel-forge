@@ -106,6 +106,15 @@ export const video = {
   status: (taskId) => request(`/api/video/status/${taskId}`),
 };
 
+// ─── Chat (LLM) ─────────────────────────────────────────
+
+export const chat = (body) =>
+  request('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+
 // ─── Admin ───────────────────────────────────────────────
 
 export const admin = {
