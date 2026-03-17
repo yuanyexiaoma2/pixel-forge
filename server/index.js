@@ -591,7 +591,7 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
     const kieRes = await fetch(`${KIE_BASE}/${basePath}/v1/chat/completions`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ model: model || 'deepseek-chat', messages, stream: !!stream }),
+      body: JSON.stringify({ model: model || 'gpt-5.2', messages, stream: !!stream }),
     });
     if (!kieRes.ok) {
       const err = await kieRes.text();

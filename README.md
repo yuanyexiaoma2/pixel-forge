@@ -1,16 +1,48 @@
-# React + Vite
+# PictureMe
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AI 图像生成桌面应用，基于 Electron + Vite + React + Express。
 
-Currently, two official plugins are available:
+## 快速开始
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+# 1. 克隆项目
+git clone https://github.com/yuanyexiaoma2/pixel-forge.git
+cd pixel-forge
 
-## React Compiler
+# 2. 安装依赖
+npm install
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# 3. 复制环境变量配置
+cp .env.example .env
 
-## Expanding the ESLint configuration
+# 4. 启动（前端 + 后端）
+npm run start
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+启动后打开 http://localhost:5173 即可使用。
+
+## 默认账号
+
+| 用户名 | 密码 |
+|--------|------|
+| majiwei | majiwei666 |
+
+## API Key 配置
+
+`KIE_API_KEY` 可在 `.env` 中填写，也可以留空——首次登录后会自动弹窗提示配置。
+
+## 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `npm run start` | 启动前端 + 后端 |
+| `npm run dev` | 启动前端 + 后端 + Electron |
+| `npm run build` | 构建前端 |
+| `npm run dist` | 构建并打包桌面应用 |
+
+## 技术栈
+
+- **前端**: React 19 + Vite
+- **后端**: Express + sql.js (SQLite)
+- **桌面**: Electron
+- **AI**: kie.ai API

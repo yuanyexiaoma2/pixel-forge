@@ -211,11 +211,8 @@ const SAMPLE_IMAGES = [
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{--bg0:#111113;--bg1:#161618;--bg2:#1c1c1f;--bgc:#19191c;--bgh:#222225;--bd:#28282c;--bdl:#323236;--t1:#e8e8ea;--t2:#8a8a94;--t3:#56565e;--ac:#d4a574;--ach:#e0b88a;--acg:rgba(212,165,116,0.15);--pu:#9b8ec4;--cy:#7cb8c4;--gn:#7ec49b;--sw:220px;--ui-zoom:1}
-@media(min-width:1600px){:root{--ui-zoom:1.15;--sw:250px}}
-@media(min-width:1920px){:root{--ui-zoom:1.25;--sw:270px}}
-@media(min-width:2560px){:root{--ui-zoom:1.45;--sw:300px}}
-@media(min-width:3200px){:root{--ui-zoom:1.7;--sw:340px}}
-@media(min-width:3840px){:root{--ui-zoom:2;--sw:380px}}
+@media(min-width:2560px){:root{--ui-zoom:1.2;--sw:250px}}
+@media(min-width:3840px){:root{--ui-zoom:1.5;--sw:280px}}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg0);color:var(--t1);-webkit-font-smoothing:antialiased}
 #root{zoom:var(--ui-zoom)}
@@ -1718,7 +1715,7 @@ function LoginPage({onLogin}){
 
   const inputStyle={padding:"12px 16px",borderRadius:8,border:"1px solid var(--bd)",background:"var(--bgc)",color:"var(--t1)",fontFamily:"inherit",fontSize:14,outline:"none",width:"100%"};
   return(
-    <div style={{minHeight:"100vh",background:"var(--bg0)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+    <div style={{position:"fixed",inset:0,background:"var(--bg0)",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <style>{CSS}</style>
       <div style={{width:380,background:"var(--bg1)",borderRadius:14,border:"1px solid var(--bd)",padding:"40px 36px",animation:"scaleIn .25s ease-out",position:"relative"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
@@ -1742,8 +1739,7 @@ function LoginPage({onLogin}){
 // ─── AI 提示词助手 ──────────────────────────────────────
 const LLM_MODELS=[
   {id:"gpt-5.2",name:"GPT-5.2",color:"#10a37f",path:"gpt-5-2"},
-  {id:"deepseek-chat",name:"DeepSeek V3",color:"#4d6bfe",path:"api"},
-  {id:"deepseek-reasoner",name:"DeepSeek R1",color:"#6366f1",path:"api"},
+  {id:"gemini-3-flash",name:"Gemini 3 Flash",color:"#4285f4",path:"gemini-3-flash"},
 ];
 
 const FURNITURE_STYLES=[
@@ -1768,7 +1764,7 @@ function AiPromptPage({sendPromptToGen}){
   const activeConvo=convos.find(c=>c.id===activeId)||null;
   const[messages,setMessages]=useState(()=>activeConvo?.messages||[]);
   const[input,setInput]=useState("");
-  const[selModel,setSelModel]=useState(()=>{const v=localStorage.getItem('ai_prompt_model');return v?Number(v):0;});
+  const[selModel,setSelModel]=useState(()=>{const v=localStorage.getItem('ai_prompt_model');const n=v?Number(v):0;return n<LLM_MODELS.length?n:0;});
   const[loading,setLoading]=useState(false);
   const[refImages,setRefImages]=useState([]);
   const[dragOver,setDragOver]=useState(false);
@@ -1897,7 +1893,7 @@ function AiPromptPage({sendPromptToGen}){
     }
 
     // 构建 API messages（加入 system prompt）
-    const sysMsg={role:"system",content:"你是一个多功能的 AI 创意助手，可以帮助用户进行灵感探索、图像分析、创意讨论和提示词生成。用户可能会分享参考图片让你描述和分析，也可能和你讨论各种创意想法。如果用户需要图像生成提示词，请生成高质量的英文提示词（用代码块包裹），并用中文简要解释思路。请用友好专业的语气回复。"};
+    const sysMsg={role:"system",content:"你是一个有创意、有个性的 AI 助手，平时帮用户聊创意、分析图片、写图像生成提示词。说话要自然，像朋友聊天一样，别老是用「首先/其次/最后」这种结构化格式，也不要每次都分条列点。语气可以轻松一点，偶尔可以表达自己的看法或倾向，别像在写报告。如果用户需要图像生成提示词，就生成高质量的英文提示词（用代码块包裹），然后用几句话聊聊你的思路，别搞成正式说明文。"};
     const apiMsgs=[sysMsg,...newMessages.map(m=>({role:m.role,content:m.content}))];
 
     const assistantMsg={role:"assistant",content:"",_display:""};
@@ -1993,7 +1989,7 @@ function AiPromptPage({sendPromptToGen}){
   };
 
   return(
-    <div style={{display:"flex",height:"calc(100vh - 100px)"}}>
+    <div style={{display:"flex",height:"calc(100vh - 52px)"}}>
       {/* ── 左侧面板 ── */}
       <div style={{width:sideCol?44:200,minWidth:sideCol?44:200,flexShrink:0,borderRight:"1px solid var(--bd)",display:"flex",flexDirection:"column",transition:"width .2s ease,min-width .2s ease",overflow:"hidden"}}>
         {/* 顶部按钮 */}
@@ -2118,9 +2114,9 @@ function AiPromptPage({sendPromptToGen}){
                 ref={inputRef}
                 value={input}
                 onChange={e=>setInput(e.target.value)}
-                onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();sendMessage();}}}
+                onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}}
                 onPaste={onPaste}
-                placeholder="输入消息... ⌘Enter 发送"
+                placeholder="输入消息... Enter 发送，Shift+Enter 换行"
                 rows={1}
                 style={{flex:1,resize:"none",background:"transparent",border:"none",outline:"none",color:"var(--t1)",fontFamily:"inherit",fontSize:14,lineHeight:1.6,padding:"5px 0",maxHeight:120,overflowY:"auto"}}
                 onInput={e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';}}
@@ -2150,14 +2146,11 @@ function AiPromptPage({sendPromptToGen}){
 
 // ─── 提示词模板库 ──────────────────────────────────────────
 const DEFAULT_PROMPT_CATEGORIES=[
-  {id:"modern",name:"现代风格"},
-  {id:"country",name:"乡村风"},
-  {id:"product",name:"产品特写"},
-  {id:"other",name:"其他"},
+  {id:"style-preset",name:"风格预设"},
 ];
 
 const DEFAULT_PROMPT_TEMPLATES=FURNITURE_STYLES.map(s=>({
-  id:s.id,title:s.name,prompt:s.prompt,categoryId:s.id==="american-modern"||s.id==="mid-century"?"modern":s.id==="rural"||s.id==="farmhouse"?"country":"other",coverImg:null,desc:s.desc,
+  id:s.id,title:s.name,prompt:s.prompt,categoryId:"style-preset",coverImg:null,desc:s.desc,
 }));
 
 function PromptLibPage({sendPromptToGen}){
@@ -2663,12 +2656,13 @@ export default function App(){
             <button onClick={logout} style={{padding:"5px 12px",borderRadius:6,border:"1px solid var(--bd)",background:"transparent",color:"var(--t3)",fontFamily:"inherit",fontSize:12,cursor:"pointer",transition:"color .15s"}} onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'} onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>退出</button>
           </div>
         </header>
-        <div style={{padding:"24px 28px 48px"}}>
-          {/* HomePage 始终挂载，切换页面时隐藏而非卸载，保留 pendingTasks/refImages 等状态 */}
+        {/* AiPromptPage 常驻，避免切换时丢失对话状态 */}
+        <div style={{display:page===PAGES.AI_PROMPT?'flex':'none',flexDirection:'column'}}><AiPromptPage sendPromptToGen={sendPromptToGen}/></div>
+        <div style={{display:page===PAGES.AI_PROMPT?'none':'block',padding:"24px 28px 48px"}}>
+          {/* HomePage 常驻，切换时隐藏而非卸载，保留生图进度/参考图等状态 */}
           <div style={{display:page===PAGES.HOME?'block':'none'}}><HomePage tab={tab} setTab={setTab} images={images} addImages={addImages} loadingImages={loadingImages} toggleFav={toggleFav} deleteImage={deleteImage} currentUser={currentUser} refreshCredits={refreshCredits} pendingRefImage={pendingRefImage} clearPendingRef={()=>setPendingRefImage(null)} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/></div>
           {page===PAGES.LIBRARY&&<LibraryPage images={images} toggleFav={toggleFav} deleteImage={deleteImage} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/>}
           {page===PAGES.FAVORITES&&<LibraryPage favorites images={images} toggleFav={toggleFav} deleteImage={deleteImage} useImageAsRef={useImageAsRef} useImageAsVideoRef={useImageAsVideoRef}/>}
-          {page===PAGES.AI_PROMPT&&<AiPromptPage sendPromptToGen={sendPromptToGen}/>}
           {page===PAGES.PROMPT_LIB&&<PromptLibPage sendPromptToGen={sendPromptToGen}/>}
           {page===PAGES.ADMIN&&currentUser?.role==='admin'&&<AdminPage/>}
         </div>
