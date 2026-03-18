@@ -211,7 +211,7 @@ const SAMPLE_IMAGES = [
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{--bg0:#111113;--bg1:#161618;--bg2:#1c1c1f;--bgc:#19191c;--bgh:#222225;--bd:#28282c;--bdl:#323236;--t1:#e8e8ea;--t2:#8a8a94;--t3:#56565e;--ac:#d4a574;--ach:#e0b88a;--acg:rgba(212,165,116,0.15);--pu:#9b8ec4;--cy:#7cb8c4;--gn:#7ec49b;--sw:220px;--ui-zoom:1}
-@media(min-width:2560px){:root{--ui-zoom:1.2;--sw:250px}}
+@media(min-width:2560px){:root{--ui-zoom:1.3;--sw:260px}}
 @media(min-width:3840px){:root{--ui-zoom:1.5;--sw:280px}}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg0);color:var(--t1);-webkit-font-smoothing:antialiased}
@@ -2036,7 +2036,7 @@ function AiPromptPage({sendPromptToGen}){
       <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,position:"relative"}}>
         {/* 消息滚动区 */}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
-          <div style={{flex:1,maxWidth:720,width:"100%",margin:"0 auto",padding:"20px 24px 16px",display:"flex",flexDirection:"column",gap:20}}>
+          <div style={{flex:1,maxWidth:960,width:"100%",margin:"0 auto",padding:"20px 24px 16px",display:"flex",flexDirection:"column",gap:20}}>
             {messages.length===0&&(
               <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,color:"var(--t3)"}}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.3}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -2057,7 +2057,7 @@ function AiPromptPage({sendPromptToGen}){
                         ))}
                       </div>
                     )}
-                    <div style={{padding:"10px 16px",borderRadius:"18px 18px 4px 18px",background:"var(--ac)",color:"var(--bg0)",fontSize:13,lineHeight:1.7,wordBreak:"break-word"}}>
+                    <div style={{padding:"10px 16px",borderRadius:"18px 18px 4px 18px",background:"hsl(30,28%,60%)",color:"var(--bg0)",fontSize:13,lineHeight:1.7,wordBreak:"break-word"}}>
                       {msg._display||"[图片]"}
                     </div>
                   </div>
@@ -2094,7 +2094,7 @@ function AiPromptPage({sendPromptToGen}){
 
         {/* 底部输入区 */}
         <div style={{flexShrink:0,padding:"0 24px 16px",display:"flex",justifyContent:"center"}}>
-          <div onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} style={{width:"100%",maxWidth:720,border:dragOver?"1.5px solid var(--ac)":"1px solid var(--bd)",borderRadius:16,background:"var(--bg2)",transition:"border .15s"}}>
+          <div onDrop={onDrop} onDragOver={onDragOver} onDragLeave={onDragLeave} style={{width:"100%",maxWidth:960,border:dragOver?"1.5px solid var(--ac)":"1px solid var(--bd)",borderRadius:16,background:"var(--bg2)",transition:"border .15s"}}>
             {refImages.length>0&&(
               <div style={{display:"flex",gap:6,padding:"10px 14px 0",flexWrap:"wrap"}}>
                 {refImages.map((img,i)=>(
